@@ -4,6 +4,20 @@
 
 namespace pci
 {
+	struct ClassCode
+	{
+		uint8_t base, sub, interface;
+
+		/** @brief ベースクラスが等しい場合に真を返す */
+		bool Match(uint8_t b) { return b == base; }
+		/** @brief ベースクラスとサブクラスが等しい場合に真を返す */
+		bool Match(uint8_t b, uint8_t s) { return Match(b) && s == sub; }
+		/** @brief ベース，サブ，インターフェースが等しい場合に真を返す */
+		bool Match(uint8_t b, uint8_t s, uint8_t i)
+		{
+			return Match(b, s) && i == interface;
+		}
+	};
 
 	struct Device
 	{
@@ -11,6 +25,7 @@ namespace pci
 		uint8_t device;
 		uint8_t function;
 		uint8_t header_type;
+		ClassCode class_code;
 	};
 
 	const uint16_t kConfigAddress = 0x0cf8;
@@ -26,8 +41,20 @@ namespace pci
 	uint16_t ReadVendorId(uint8_t bus, uint8_t device, uint8_t function);
 	uint16_t ReadDeviceId(uint8_t bus, uint8_t device, uint8_t function);
 	uint8_t ReadHeaderType(uint8_t bus, uint8_t device, uint8_t function);
-	uint32_t ReadClassCode(uint8_t bus, uint8_t device, uint8_t function);
+
+	ClassCode ReadClassCode(uint8_t bus, uint8_t device, uint8_t function);
 	uint32_t ReadBusNumbers(uint8_t bus, uint8_t device, uint8_t function);
+
+	inline uint16_t ReadVendorId(const Device &dev)
+	{
+		return ReadVendorId(dev.bus, dev.device, dev.function);
+	}
+
+	uint32_t ReadConfReg(const Device &device, uint8_t reg_addr);
+	void WriteConfReg(const Device &device, uint8_t reg_addr, uint32_t value);
+
+	WithError<uint64_t> ReadBar(const Device &dev, unsigned int bar_index);
+
 	bool IsSingleFunctionDevice(uint8_t header_type);
 
 	Error ScanAllBus();

@@ -18,40 +18,39 @@ namespace
 		return shl(1, 31) | shl(bus, 16) | shl(device, 11) | shl(function, 8) | (reg_addr & 0xfcu);
 	}
 
-	Error AddDevice(uint8_t bus, uint8_t device, uint8_t function, uint8_t header_type)
+	Error AddDevice(const Device &device)
 	{
 		if (num_device == devices.size())
 		{
-			return Error::kFull;
+			return MAKE_ERROR(Error::kFull);
 		}
 
-		devices[num_device] = Device{bus, device, function, header_type};
+		devices[num_device] = device;
 		++num_device;
-		return Error::kSuccess;
-	}
+		return MAKE_ERROR(Error::kSuccess);
+	};
 
 	Error ScanBus(uint8_t bus);
 
 	Error ScanFunction(uint8_t bus, uint8_t device, uint8_t function)
 	{
 		auto header_type = ReadHeaderType(bus, device, function);
-		if (auto err = AddDevice(bus, device, function, header_type))
+		auto class_code = ReadClassCode(bus, device, function);
+		Device dev{bus, device, function, header_type, class_code};
+
+		if (auto err = AddDevice(dev))
 		{
 			return err;
 		}
 
-		auto class_code = ReadClassCode(bus, device, function);
-		uint8_t base = (class_code >> 24) & 0xffu;
-		uint8_t sub = (class_code >> 16) & 0xffu;
-
-		if (base == 0x06u && sub == 0x04u)
+		if (class_code.Match(0x06u, 0x04u))
 		{
 			auto bus_numbers = ReadBusNumbers(bus, device, function);
 			uint8_t secondary_bus = (bus_numbers >> 8) & 0xffu;
 			return ScanBus(secondary_bus);
 		}
 
-		return Error::kSuccess;
+		return MAKE_ERROR(Error::kSuccess);
 	}
 
 	Error ScanDevice(uint8_t bus, uint8_t device)
@@ -62,7 +61,7 @@ namespace
 		}
 		if (IsSingleFunctionDevice(ReadHeaderType(bus, device, 0)))
 		{
-			return Error::kSuccess;
+			return MAKE_ERROR(Error::kSuccess);
 		}
 
 		for (uint8_t function = 1; function < 8; ++function)
@@ -77,7 +76,7 @@ namespace
 			}
 		}
 
-		return Error::kSuccess;
+		return MAKE_ERROR(Error::kSuccess);
 	}
 
 	Error ScanBus(uint8_t bus)
@@ -94,7 +93,7 @@ namespace
 			}
 		}
 
-		return Error::kSuccess;
+		return MAKE_ERROR(Error::kSuccess);
 	}
 }
 
@@ -136,10 +135,16 @@ namespace pci
 
 	// 2行目（07-04）を全部クラスコードって呼んでるの？
 	// Revision ID と Interface も含まれていない？
-	uint32_t ReadClassCode(uint8_t bus, uint8_t device, uint8_t function)
+	ClassCode ReadClassCode(uint8_t bus, uint8_t device, uint8_t function)
 	{
 		WriteAddress(MakeAddress(bus, device, function, 0x08));
-		return ReadData();
+		uint32_t class_code = ReadData();
+
+		uint8_t interface = (class_code >> 8) & 0xffu;
+		uint8_t base = (class_code >> 24) & 0xffu;
+		uint8_t sub = (class_code >> 16) & 0xffu;
+
+		return ClassCode{base, sub, interface};
 	}
 
 	// 「Base Address Register 2」って書いてあるけど？？
@@ -154,6 +159,39 @@ namespace pci
 	{
 		return (header_type & 0x80u) == 0;
 	}
+
+	uint32_t ReadConfReg(const Device &device, uint8_t reg_addr)
+	{
+		WriteAddress(MakeAddress(device.bus, device.device, device.function, reg_addr));
+		return ReadData();
+	}
+
+	void WriteConfReg(const Device &device, uint8_t reg_addr, uint32_t value)
+	{
+		WriteAddress(MakeAddress(device.bus, device.device, device.function, reg_addr));
+		WriteData(value);
+	}
+
+	WithError<uint64_t> ReadBar(const Device &device, unsigned int bar_index)
+	{
+		if (bar_index >= 6)
+		{
+			return {0, MAKE_ERROR(Error::kIndexOutOfRange)};
+		};
+
+		int bar_addr = 0x10 + 4 * bar_index;
+		uint32_t bar = ReadConfReg(device, bar_addr);
+
+		if ((bar & 04u) == 0)
+		{
+			return {bar, MAKE_ERROR(Error::kSuccess)};
+		}
+
+		uint32_t bar_upper = ReadConfReg(device, bar_addr + 4);
+		uint64_t value = bar | (static_cast<uint64_t>(bar_upper) << 32);
+
+		return WithError<uint64_t>{value, MAKE_ERROR(Error::kSuccess)};
+	};
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -180,6 +218,6 @@ namespace pci
 				return err;
 			}
 		}
-		return Error::kSuccess;
+		return MAKE_ERROR(Error::kSuccess);
 	}
 }
