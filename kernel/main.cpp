@@ -5,17 +5,18 @@
 #include "frame_buffer_config.hpp"
 #include "graphics.hpp"
 #include "font.hpp"
-#include "console.cpp"
+#include "console.hpp"
+#include "pci.hpp"
 
 const PixelColor kDesktopBGColor = {6, 32, 43};
 const PixelColor kDesktopFGColor = {245, 238, 221};
 const PixelColor kDesktopAccentColor = {122, 226, 207};
 const PixelColor kDesktopAccent2Color = {7, 122, 125};
 
-void *operator new(size_t size, void *buf)
-{
-  return buf;
-}
+// void *operator new(size_t size, void *buf)
+// {
+//   return buf;
+// }
 
 void operator delete(void *obj) noexcept
 {
@@ -124,9 +125,21 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
   // Windowsアイコン
   DrawRectangle(*pixel_writer, {10, kFrameHeight - 40}, {30, 30}, kDesktopAccentColor);
 
-  RenderMouseCursorAt(kFrameWidth / 2, kFrameHeight / 2);
+  auto err = pci::ScanAllBus();
+  printk("ScanAllBus: %s\n", err.Name());
 
-  printk("Hello world\n");
+  for (int i = 0; i < pci::num_device; ++i)
+  {
+    const auto &dev = pci::devices[i];
+    auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
+    auto class_code = pci::ReadClassCode(dev.bus, dev.device, dev.function);
+
+    printk("%d.%d.%d: vend %04x, class %08x, head: %02x\n", dev.bus, dev.device, dev.function, vendor_id, class_code, dev.header_type);
+  }
+
+  // RenderMouseCursorAt(kFrameWidth / 2, kFrameHeight / 2);
+
+  // printk("Hello world\n");
 
   while (1)
     __asm__("hlt");
