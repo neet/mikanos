@@ -1,0 +1,7 @@
+{
+	"files.associations": {
+		"*.erb": "erb",
+		"simplefilesystem.h": "c",
+		"loadedimage.h": "c"
+	}
+}
