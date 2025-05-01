@@ -1,7 +1,10 @@
 {
 	"files.associations": {
 		"*.erb": "erb",
-		"simplefilesystem.h": "c",
-		"loadedimage.h": "c"
+		"*.h": "c",
+		"*.c": "c",
+		"*.cpp": "cpp",
+		"*.hpp": "cpp",
+		"cstdint": "cpp",
 	}
 }

@@ -9,6 +9,7 @@
 #include <Protocol/GraphicsOutput.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Guid/FileInfo.h>
+#include "frame_buffer_config.hpp"
 
 struct MemoryMap
 {
@@ -196,7 +197,7 @@ EFI_STATUS EFIAPI UefiMain(
     EFI_HANDLE image_handle,
     EFI_SYSTEM_TABLE *system_table)
 {
-  Print(L"Hello, Mikan World!\n");
+  Print(L"MikanOS as of section 4.2\n");
 
   CHAR8 memmap_buf[4096 * 4];
   struct MemoryMap memmap = {sizeof(memmap_buf), memmap_buf, 0, 0, 0, 0};
@@ -213,27 +214,8 @@ EFI_STATUS EFIAPI UefiMain(
   SaveMemoryMap(&memmap, memmap_file);
   memmap_file->Close(memmap_file);
 
-  // リスト3.6の実装
   EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
   OpenGOP(image_handle, &gop);
-  // Print(L"Resolution: %ux%u, Pixel Format: %s, %u pixels/line\n",
-  //     gop->Mode->Info->HorizontalResolution,
-  //     gop->Mode->Info->VerticalResolution,
-  //     GetPixelFormatUnicode(gop->Mode->Info->PixelFormat),
-  //     gop->Mode->Info->PixelsPerScanLine);
-  // Print(L"Frame Buffer: 0x%0lx - 0x%0lx, Size: %lu bytes\n",
-  //     gop->Mode->FrameBufferBase,
-  //     gop->Mode->FrameBufferBase + gop->Mode->FrameBufferSize,
-  //     gop->Mode->FrameBufferSize);
-
-  // UINT8* frame_buffer = (UINT8*)gop->Mode->FrameBufferBase;
-  // for (UINTN i = 0; i < gop->Mode->FrameBufferSize; ++i) {
-  //   if ((i / 4) % 2 == 0) {
-  //     frame_buffer[i] = 255;
-  //   } else {
-  //     frame_buffer[i] = 0;
-  //   }
-  // }
 
   // #@@range_begin(read_kernel)
   EFI_FILE_PROTOCOL *kernel_file;
@@ -290,9 +272,28 @@ EFI_STATUS EFIAPI UefiMain(
   // #@@range_begin(call_kernel)
   UINT64 entry_addr = *(UINT64 *)(kernel_base_addr + 24);
 
-  typedef void EntryPointType(UINT64, UINT64);
+  struct FrameBufferConfig config = {
+      (UINT8 *)gop->Mode->FrameBufferBase,
+      gop->Mode->Info->PixelsPerScanLine,
+      gop->Mode->Info->HorizontalResolution,
+      gop->Mode->Info->VerticalResolution,
+      0};
+  switch (gop->Mode->Info->PixelFormat)
+  {
+  case PixelRedGreenBlueReserved8BitPerColor:
+    config.pixel_format = kPixelRGBResv8BitPerColor;
+    break;
+  case PixelBlueGreenRedReserved8BitPerColor:
+    config.pixel_format = kPixelBGRResv8BitPerColor;
+    break;
+  default:
+    Print(L"Unimplemented pixel format: %d\n", gop->Mode->Info->PixelFormat);
+    Halt();
+  }
+
+  typedef void EntryPointType(const struct FrameBufferConfig *);
   EntryPointType *entry_point = (EntryPointType *)entry_addr;
-  entry_point(gop->Mode->FrameBufferBase, gop->Mode->FrameBufferSize);
+  entry_point(&config);
   // #@@range_end(call_kernel)
 
   Print(L"All done\n");
