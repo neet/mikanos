@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# 追加
+kernel.elf
