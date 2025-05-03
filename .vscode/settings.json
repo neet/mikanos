@@ -6,5 +6,16 @@
 		"*.cpp": "cpp",
 		"*.hpp": "cpp",
 		"cstdint": "cpp",
+		"new": "cpp"
+	},
+	"github.copilot.enable": {
+		"*": false,
+		"plaintext": true,
+		"markdown": true,
+		"scminput": false,
+		"yaml": true,
+		"typescript": true,
+		"typescriptreact": true,
+		"rust": true
 	}
 }
