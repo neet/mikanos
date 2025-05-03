@@ -6,7 +6,7 @@
                 "${workspaceFolder}/**",
                 "/home/neet/edk2/MdePkg/Include/**",
                 "/home/neet/edk2/MdePkg/Include/X64/**",
-                "/home/neet/osbook/devenv/x86_64-elf/include/c++/**",
+                "/home/neet/osbook/devenv/x86_64-elf/include/c++/v1/*",
                 "/home/neet/osbook/devenv/x86_64-elf/include/freetype2/**",
                 "/home/neet/osbook/devenv/x86_64-elf/include/**"
             ],

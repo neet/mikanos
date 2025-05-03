@@ -6,7 +6,8 @@
 		"*.cpp": "cpp",
 		"*.hpp": "cpp",
 		"cstdint": "cpp",
-		"new": "cpp"
+		"new": "cpp",
+		"memory_resource": "c"
 	},
 	"github.copilot.enable": {
 		"*": false,
