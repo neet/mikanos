@@ -1,5 +1,5 @@
 TARGET := kernel.elf
-OBJS := main.o
+OBJS := main.o font.o graphics.o
 
 BASEDIR := $(HOME)/osbook/devenv/x86_64-elf
 EDK2DIR := $(HOME)/edk2"
