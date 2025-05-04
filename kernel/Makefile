@@ -1,5 +1,5 @@
 TARGET := kernel.elf
-OBJS := main.o font.o graphics.o
+OBJS := main.o font.o graphics.o hankaku.o
 
 BASEDIR := $(HOME)/osbook/devenv/x86_64-elf
 EDK2DIR := $(HOME)/edk2"
@@ -22,6 +22,12 @@ clean:
 
 kernel.elf: $(OBJS) Makefile
 	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS)
+
+hankaku.bin: hankaku.txt
+	../tools/makefont.py -o hankaku.bin hankaku.txt
+
+hankaku.o: hankaku.bin
+	x86_64-linux-gnu-objcopy -I binary -O elf64-x86-64 -B i386:x86-64 hankaku.bin hankaku.o
 
 %.o: %.cpp Makefile
 	clang++ $(CXXFLAGS) -c $<

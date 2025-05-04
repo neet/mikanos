@@ -39,7 +39,18 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config)
     }
   }
 
-  WriteAscii(*pixel_writer, 0, 0, 'A', {0, 0, 0});
+  WriteAscii(*pixel_writer, 0, 0, 'H', {0, 0, 0});
+  WriteAscii(*pixel_writer, 8, 0, 'e', {0, 0, 0});
+  WriteAscii(*pixel_writer, 16, 0, 'l', {0, 0, 0});
+  WriteAscii(*pixel_writer, 24, 0, 'l', {0, 0, 0});
+  WriteAscii(*pixel_writer, 32, 0, 'o', {0, 0, 0});
+  WriteAscii(*pixel_writer, 40, 0, ' ', {0, 0, 0});
+  WriteAscii(*pixel_writer, 48, 0, 'W', {0, 0, 0});
+  WriteAscii(*pixel_writer, 56, 0, 'o', {0, 0, 0});
+  WriteAscii(*pixel_writer, 64, 0, 'r', {0, 0, 0});
+  WriteAscii(*pixel_writer, 72, 0, 'l', {0, 0, 0});
+  WriteAscii(*pixel_writer, 80, 0, 'd', {0, 0, 0});
+  WriteAscii(*pixel_writer, 88, 0, '!', {0, 0, 0});
 
   while (1)
     __asm__("hlt");
