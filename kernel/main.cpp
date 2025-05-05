@@ -5,6 +5,7 @@
 #include "frame_buffer_config.hpp"
 #include "graphics.hpp"
 #include "font.hpp"
+#include "console.cpp"
 
 void *operator new(size_t size, void *buf)
 {
@@ -17,6 +18,23 @@ void operator delete(void *obj) noexcept
 
 char pixel_writer_buf[sizeof(RGBResv8BitPerColorPixelWriter)];
 PixelWriter *pixel_writer;
+
+char console_buf[sizeof(Console)];
+Console *console;
+
+int printk(const char *format, ...)
+{
+  va_list ap;
+  int result;
+  char s[1024];
+
+  va_start(ap, format);
+  result = vsprintf(s, format, ap);
+  va_end(ap);
+
+  console->PutString(s);
+  return result;
+}
 
 extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config)
 {
@@ -32,17 +50,42 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config)
     break;
   }
 
-  for (int x = 0; x < frame_buffer_config.horizontal_resolution; ++x)
-  {
-    for (int y = 0; y < frame_buffer_config.vertical_resolution; ++y)
-    {
-      pixel_writer->Write(x, y, {255, 255, 255});
-    }
-  }
+  console = new (console_buf)
+      Console{*pixel_writer, {0, 0, 0}, {255, 255, 255}};
 
-  char buf[128];
-  sprintf(buf, "1 + 2 = %d", 1 + 2);
-  WriteString(*pixel_writer, 0, 0, buf, {0, 0, 0});
+  console->PutString(
+      "sirokani pe ran ran piskan, konkani pe\n"
+      "ran ran piskan.\" ari an rekpo ci=ki kane\n"
+      "pet esoro sap=as ayne, aynu kotan enkasike\n"
+      "ci=kus kor si-corpok un inkar=as ko\n"
+      "teeta wenkur tane nispa ne, teeta nispa\n"
+      "tane wenkur ne kotom siran.\n"
+      "atuyteksam ta aynu hekattar ak-sinot-pon-ku\n"
+      "ak-sinot-pon-ay euesinot kor okay.\n"
+      "sirokani pe ran ran piskan,\n"
+      "konkani pe ran ran piskan.\" ari an rekpo\n"
+      "ci=ki kane hekaci utar enkasike\n"
+      "ci=kus awa, un=corpoke ehoyuppa\n"
+      "'ene hawokay i:'\n"
+      "pirka cikappo! kamuy cikappo!\n"
+      "keke hetak, ak=as wa toan cikappo\n"
+      "kamuy cikappo tukan wa an kur, hoski uk kur\n"
+      "sonno rametok sino cipapa ne ruwe tapan\"\n"
+      "hawokay kane, teeta wenkur tane nispa ne p\n"
+      "poutari, konkani pon ku konkani pon ay\n"
+      "ueunu pa un=tukan ko, konkani pon ay\n"
+      "si-corpok ci=kuste si-enka ci=kuste.\n"
+      "ci=kus awa, un=corpoke ehoyuppa\n"
+      "'ene hawokay i:'\n"
+      "pirka cikappo! kamuy cikappo!\n"
+      "keke hetak, ak=as wa toan cikappo\n"
+      "kamuy cikappo tukan wa an kur, hoski uk kur\n"
+      "sonno rametok sino cipapa ne ruwe tapan\"\n");
+
+  // for (int i = 0; i < 16; ++i)
+  // {
+  //   printk("printk: %d\n", i);
+  // }
 
   while (1)
     __asm__("hlt");
