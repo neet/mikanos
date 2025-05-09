@@ -2,6 +2,9 @@
 #include <cstddef>
 #include <cstdio>
 
+#include <numeric>
+#include <vector>
+
 #include "frame_buffer_config.hpp"
 #include "graphics.hpp"
 #include "font.hpp"
@@ -18,16 +21,6 @@ const PixelColor kDesktopBGColor = {6, 32, 43};
 const PixelColor kDesktopFGColor = {245, 238, 221};
 const PixelColor kDesktopAccentColor = {122, 226, 207};
 const PixelColor kDesktopAccent2Color = {7, 122, 125};
-
-void operator delete(void *obj) noexcept
-{
-}
-
-extern "C" void __cxa_pure_virtual()
-{
-  while (1)
-    __asm__("hlt");
-}
 
 char pixel_writer_buf[sizeof(RGBResv8BitPerColorPixelWriter)];
 PixelWriter *pixel_writer;
@@ -107,7 +100,8 @@ void SwitchEhci2Xhci(const pci::Device &xhc_dev)
   bool intel_ehc_exist = false;
   for (int i = 0; i < pci::num_device; ++i)
   {
-    if (pci::devices[i].class_code.Match(0x0cu, 0x03u, 0x20u) && 0x8086 == pci::ReadVendorId(pci::devices[i]))
+    if (pci::devices[i].class_code.Match(0x0cu, 0x03u, 0x20u) /* EHCI */ &&
+        0x8086 == pci::ReadVendorId(pci::devices[i]))
     {
       intel_ehc_exist = true;
       break;
@@ -118,11 +112,12 @@ void SwitchEhci2Xhci(const pci::Device &xhc_dev)
     return;
   }
 
-  uint32_t superspeed_ports = pci::ReadConfReg(xhc_dev, 0xdc);
-  pci::WriteConfReg(xhc_dev, 0xd8, superspeed_ports);
-  uint32_t ehci2xhci_ports = pci::ReadConfReg(xhc_dev, 0xd4);
-  pci::WriteConfReg(xhc_dev, 0xd0, ehci2xhci_ports);
-  printk("SwitchEhci2Xhci: SS = %02x, xHCI = %02x\n", superspeed_ports, ehci2xhci_ports);
+  uint32_t superspeed_ports = pci::ReadConfReg(xhc_dev, 0xdc); // USB3PRM
+  pci::WriteConfReg(xhc_dev, 0xd8, superspeed_ports);          // USB3_PSSEN
+  uint32_t ehci2xhci_ports = pci::ReadConfReg(xhc_dev, 0xd4);  // XUSB2PRM
+  pci::WriteConfReg(xhc_dev, 0xd0, ehci2xhci_ports);           // XUSB2PR
+  Log(kDebug, "SwitchEhci2Xhci: SS = %02, xHCI = %02x\n",
+      superspeed_ports, ehci2xhci_ports);
 }
 
 extern "C" void
@@ -140,9 +135,6 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
     break;
   }
 
-  console = new (console_buf)
-      Console{*pixel_writer, kDesktopFGColor, kDesktopBGColor};
-
   const int kFrameWidth = frame_buffer_config.horizontal_resolution;
   const int kFrameHeight = frame_buffer_config.vertical_resolution;
 
@@ -155,16 +147,19 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
   // Windowsアイコン
   DrawRectangle(*pixel_writer, {10, kFrameHeight - 40}, {30, 30}, kDesktopAccentColor);
 
+  console = new (console_buf)
+      Console{*pixel_writer, kDesktopFGColor, kDesktopBGColor};
+  SetLogLevel(kDebug);
+
   auto err = pci::ScanAllBus();
-  printk("ScanAllBus: %s\n", err.Name());
+  Log(kDebug, "ScanAllBus: %s\n", err.Name());
 
   for (int i = 0; i < pci::num_device; ++i)
   {
     const auto &dev = pci::devices[i];
-    auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
+    auto vendor_id = pci::ReadVendorId(dev);
     auto class_code = pci::ReadClassCode(dev.bus, dev.device, dev.function);
-
-    printk("%d.%d.%d: vend %04x, class %08x, head: %02x\n", dev.bus, dev.device, dev.function, vendor_id, class_code, dev.header_type);
+    Log(kDebug, "%d.%d.%d: vend %04x, class %08x, head %02x\n", dev.bus, dev.device, dev.function, vendor_id, class_code, dev.header_type);
   }
 
   pci::Device *xhc_dev = nullptr;
@@ -183,22 +178,25 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
 
   if (xhc_dev)
   {
-    // Log(kInfo, "xHC has been found: %d.%d.%d\n", xhc_dev->bus, xhc_dev->device, xhc_dev->function);
-    printk("xHC has been found => %d.%d.%d\n", xhc_dev->bus, xhc_dev->device, xhc_dev->function);
+    Log(kInfo, "xHC has been found: %d.%d.%d\n", xhc_dev->bus, xhc_dev->device, xhc_dev->function);
   }
 
   const WithError<uint64_t> xhc_bar = pci::ReadBar(*xhc_dev, 0);
-  printk("ReadBar: %s\n", xhc_bar.error.Name());
-  const uint64_t xhc_mmio_base = xhc_bar.value * ~static_cast<uint64_t>(0xf);
-  printk("xHC mmio_base = %08lx\n", xhc_mmio_base);
+  Log(kDebug, "ReadBar: %s\n", xhc_bar.error.Name());
+  const uint64_t xhc_mmio_base = xhc_bar.value & ~static_cast<uint64_t>(0xf);
+  Log(kDebug, "xHC mmio_base = %08lx\n", xhc_mmio_base);
 
+  printk("var xhc initialising\n");
   usb::xhci::Controller xhc{xhc_mmio_base};
+  printk("var xhc initialised\n");
 
   if (0x8086 == pci::ReadVendorId(*xhc_dev))
   {
+    printk("intel xhc device is there. swtiching to xHCI");
     SwitchEhci2Xhci(*xhc_dev);
   }
   {
+    printk("initializing xHC");
     auto err = xhc.Initialize();
     Log(kDebug, "xhc.Initialize: %s\n", err.Name());
   }
@@ -206,6 +204,12 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
   Log(kInfo, "xHC starting\n");
   xhc.Run();
 
+  while (1)
+    __asm__("hlt");
+}
+
+extern "C" void __cxa_pure_virtual()
+{
   while (1)
     __asm__("hlt");
 }
