@@ -62,4 +62,7 @@ namespace pci
 	}
 
 	WithError<uint64_t> ReadBar(Device &device, unsigned int bar_index);
+
+	bool isIntel(const Device &device);
+	bool isXhc(ClassCode class_code);
 }

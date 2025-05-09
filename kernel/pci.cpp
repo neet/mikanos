@@ -224,4 +224,14 @@ namespace pci
 			bar | (static_cast<uint64_t>(bar_upper) << 32),
 			MAKE_ERROR(Error::kSuccess)};
 	}
+
+	bool isXhc(ClassCode class_code)
+	{
+		return class_code.Match(0x0cu, 0x03u, 0x30u);
+	};
+
+	bool isIntel(const Device &device)
+	{
+		return ReadVendorId(device) == 0x8086;
+	};
 }

@@ -165,11 +165,11 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
   pci::Device *xhc_dev = nullptr;
   for (int i = 0; i < pci::num_device; ++i)
   {
-    if (pci::devices[i].class_code.Match(0x0cu, 0x03u, 0x30u))
+    if (pci::isXhc(pci::devices[i].class_code))
     {
       xhc_dev = &pci::devices[i];
 
-      if (0x8086 == pci::ReadVendorId(*xhc_dev))
+      if (pci::isIntel(*xhc_dev))
       {
         break;
       }
@@ -186,17 +186,13 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
   const uint64_t xhc_mmio_base = xhc_bar.value & ~static_cast<uint64_t>(0xf);
   Log(kDebug, "xHC mmio_base = %08lx\n", xhc_mmio_base);
 
-  printk("var xhc initialising\n");
   usb::xhci::Controller xhc{xhc_mmio_base};
-  printk("var xhc initialised\n");
 
-  if (0x8086 == pci::ReadVendorId(*xhc_dev))
+  if (pci::isIntel(*xhc_dev))
   {
-    printk("intel xhc device is there. swtiching to xHCI");
     SwitchEhci2Xhci(*xhc_dev);
   }
   {
-    printk("initializing xHC");
     auto err = xhc.Initialize();
     Log(kDebug, "xhc.Initialize: %s\n", err.Name());
   }
