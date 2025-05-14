@@ -11,6 +11,7 @@
 #include "console.hpp"
 #include "pci.hpp"
 #include "logger.hpp"
+#include "mouse.hpp"
 #include "usb/memory.hpp"
 #include "usb/device.hpp"
 #include "usb/classdriver/mouse.hpp"
@@ -42,57 +43,12 @@ int printk(const char *format, ...)
   return result;
 }
 
-const int kMouseCursorWidth = 15;
-const int kMouseCursorHeight = 24;
+char mouse_cursor_buf[sizeof(MouseCursor)];
+MouseCursor *mouse_cursor;
 
-const char mouse_cursor_shape[kMouseCursorHeight][kMouseCursorWidth + 1] = {
-    "@              ",
-    "@@             ",
-    "@.@            ",
-    "@..@           ",
-    "@...@          ",
-    "@....@         ",
-    "@.....@        ",
-    "@......@       ",
-    "@.......@      ",
-    "@........@     ",
-    "@.........@    ",
-    "@..........@   ",
-    "@...........@  ",
-    "@............@ ",
-    "@......@@@@@@@@",
-    "@......@       ",
-    "@....@@.@      ",
-    "@...@ @.@      ",
-    "@..@   @.@     ",
-    "@.@    @.@     ",
-    "@@      @.@    ",
-    "@       @.@    ",
-    "         @.@   ",
-    "         @@@   ",
-};
-
-void RenderMouseCursorAt(int x, int y)
+void MouseObserver(int8_t displacement_x, int8_t displacement_y)
 {
-  for (int dy = 0; dy < kMouseCursorHeight; ++dy)
-  {
-    for (int dx = 0; dx < kMouseCursorWidth; ++dx)
-    {
-      const char c = mouse_cursor_shape[dy][dx];
-
-      switch (c)
-      {
-      case '@':
-        pixel_writer->Write(x + dx, y + dy, kDesktopFGColor);
-        break;
-      case '.':
-        pixel_writer->Write(x + dx, y + dy, kDesktopBGColor);
-        break;
-      default:
-        break;
-      }
-    }
-  }
+  mouse_cursor->MoveRelative({displacement_x, displacement_y});
 }
 
 void SwitchEhci2Xhci(const pci::Device &xhc_dev)
@@ -149,7 +105,10 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
 
   console = new (console_buf)
       Console{*pixel_writer, kDesktopFGColor, kDesktopBGColor};
-  SetLogLevel(kDebug);
+  SetLogLevel(kWarn);
+
+  mouse_cursor = new (mouse_cursor_buf) MouseCursor{
+      pixel_writer, kDesktopBGColor, {0, 0}};
 
   auto err = pci::ScanAllBus();
   Log(kDebug, "ScanAllBus: %s\n", err.Name());
@@ -199,6 +158,31 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
 
   Log(kInfo, "xHC starting\n");
   xhc.Run();
+
+  usb::HIDMouseDriver::default_observer = MouseObserver;
+
+  for (int i = 1; i <= xhc.MaxPorts(); ++i)
+  {
+    auto port = xhc.PortAt(i);
+    Log(kDebug, "Port %d: IsConnected=%d\n", i, port.IsConnected());
+
+    if (port.IsConnected())
+    {
+      if (auto error = ConfigurePort(xhc, port))
+      {
+        Log(kError, "failed to configure port: %s at %s:%d\n", err.Name(), err.File(), err.Line());
+        continue;
+      }
+    }
+  }
+
+  while (1)
+  {
+    if (auto err = ProcessEvent(xhc))
+    {
+      Log(kError, "Error wihle ProcessEvent %s at %s:%d\n", err.Name(), err.File(), err.Line());
+    }
+  }
 
   while (1)
     __asm__("hlt");
