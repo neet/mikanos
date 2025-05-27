@@ -20,6 +20,7 @@
 #include "interrupt.hpp"
 #include "asmfunc.h"
 #include "queue.hpp"
+#include "memory_map.hpp"
 
 const PixelColor kDesktopBGColor = {6, 32, 43};
 const PixelColor kDesktopFGColor = {245, 238, 221};
@@ -97,9 +98,14 @@ __attribute__((interrupt)) void IntHandlerXHCI(InterruptFrame *frame)
   NotifyEndOfInterrupt();
 }
 
+alignas(16) uint8_t kernel_main_stack[1024 * 1024];
+
 extern "C" void
-KernelMain(const FrameBufferConfig &frame_buffer_config)
+KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const MemoryMap &memory_map_ref)
 {
+  FrameBufferConfig frame_buffer_config{frame_buffer_config_ref};
+  MemoryMap memory_map{memory_map_ref};
+
   switch (frame_buffer_config.pixel_format)
   {
   case kPixelRGBResv8BitPerColor:
@@ -210,6 +216,37 @@ KernelMain(const FrameBufferConfig &frame_buffer_config)
       }
     }
   }
+
+  printk("memory_map: %p\n", &memory_map);
+  for (
+      uintptr_t iter = reinterpret_cast<uintptr_t>(memory_map.buffer);
+      iter < reinterpret_cast<uintptr_t>(memory_map.buffer) + memory_map.map_size;
+      iter += memory_map.descriptor_size)
+  {
+    auto desc = reinterpret_cast<MemoryDescriptor *>(iter);
+    for (int i = 0; i < available_memory_types.size(); ++i)
+    {
+      if (desc->type == available_memory_types[i])
+      {
+        printk(
+            "type = %u, phys = %08lx - %8lx, pages = %lu, attr = %08lx\n",
+            desc->type,
+            desc->physical_start,
+            desc->physical_start + desc->number_of_pages * 4096 - 1,
+            desc->number_of_pages,
+            desc->attribute);
+      }
+    }
+  }
+
+  SetupSegments();
+
+  const uint16_t kernel_cs = 1 << 3;
+  const uint16_t kernel_ss = 2 << 3;
+  SetDSAll(0);
+  SetCSSS(kernel_cs, kernel_ss);
+
+  SetupIdentifyPageTable();
 
   while (true)
   {

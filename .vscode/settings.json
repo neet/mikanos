@@ -33,6 +33,10 @@
 		"vector": "cpp",
 		"utility": "cpp"
 	},
+	"files.exclude": {
+		"**/*.o": true,
+		"**/*.d": true
+	},
 	"github.copilot.enable": {
 		"*": false,
 		"plaintext": true,
