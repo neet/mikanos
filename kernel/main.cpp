@@ -21,6 +21,9 @@
 #include "asmfunc.h"
 #include "queue.hpp"
 #include "memory_map.hpp"
+#include "segment.hpp"
+#include "paging.hpp"
+#include "memory_manager.hpp"
 
 const PixelColor kDesktopBGColor = {6, 32, 43};
 const PixelColor kDesktopFGColor = {245, 238, 221};
@@ -46,6 +49,9 @@ int printk(const char *format, ...)
   console->PutString(s);
   return result;
 }
+
+char memory_manager_buf[sizeof(BitmapMemoryManager)];
+BitmapMemoryManager *memory_manager;
 
 char mouse_cursor_buf[sizeof(MouseCursor)];
 MouseCursor *mouse_cursor;
@@ -134,6 +140,51 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
       Console{*pixel_writer, kDesktopFGColor, kDesktopBGColor};
   SetLogLevel(kWarn);
 
+  SetupSegments();
+
+  const uint16_t kernel_cs = 1 << 3;
+  const uint16_t kernel_ss = 2 << 3;
+  SetDSAll(0);
+  SetCSSS(kernel_cs, kernel_ss);
+
+  SetupIdentityPageTable();
+
+  ::memory_manager = new (memory_manager_buf) BitmapMemoryManager;
+
+  const auto memory_map_base = reinterpret_cast<uintptr_t>(memory_map.buffer);
+  // 最後の未使用領域の末尾のアドレス
+  uintptr_t available_end = 0;
+
+  for (uintptr_t iter = memory_map_base; iter < memory_map_base + memory_map.map_size; iter += memory_map.descriptor_size)
+  {
+    auto desc = reinterpret_cast<const MemoryDescriptor *>(iter);
+    if (available_end < desc->physical_start)
+    {
+      // 「メモリマップ上で歯抜けになっている領域」は利用中
+      memory_manager->MarkAllocated(
+          // 領域の先頭のページフレーム番号。1フレーム4KiB=4096なので、0〜4095がフレーム0
+          FrameID{available_end / kBytesPerFrame},
+          // 領域の大きさ（ページフレーム単位）
+          (desc->physical_start - available_end) / kBytesPerFrame);
+    }
+
+    const auto physical_end = desc->physical_start + desc->number_of_pages * kUEFIPageSize;
+    if (IsAvailable(static_cast<MemoryType>(desc->type)))
+    {
+      available_end = physical_end;
+    }
+    else
+    {
+      // 「IsAvailableが偽を返す領域」は利用中
+      memory_manager->MarkAllocated(
+          FrameID{desc->physical_start / kBytesPerFrame},
+          (desc->number_of_pages * kUEFIPageSize / kBytesPerFrame));
+    }
+  }
+
+  // これをやらないと、メモリマネージャは際限なく大きな物理メモリが積まれてると勘違いする
+  memory_manager->SetMemoryRange(FrameID{1}, FrameID{available_end / kBytesPerFrame});
+
   mouse_cursor = new (mouse_cursor_buf) MouseCursor{
       pixel_writer, kDesktopBGColor, {0, 0}};
 
@@ -216,37 +267,6 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
       }
     }
   }
-
-  printk("memory_map: %p\n", &memory_map);
-  for (
-      uintptr_t iter = reinterpret_cast<uintptr_t>(memory_map.buffer);
-      iter < reinterpret_cast<uintptr_t>(memory_map.buffer) + memory_map.map_size;
-      iter += memory_map.descriptor_size)
-  {
-    auto desc = reinterpret_cast<MemoryDescriptor *>(iter);
-    for (int i = 0; i < available_memory_types.size(); ++i)
-    {
-      if (desc->type == available_memory_types[i])
-      {
-        printk(
-            "type = %u, phys = %08lx - %8lx, pages = %lu, attr = %08lx\n",
-            desc->type,
-            desc->physical_start,
-            desc->physical_start + desc->number_of_pages * 4096 - 1,
-            desc->number_of_pages,
-            desc->attribute);
-      }
-    }
-  }
-
-  SetupSegments();
-
-  const uint16_t kernel_cs = 1 << 3;
-  const uint16_t kernel_ss = 2 << 3;
-  SetDSAll(0);
-  SetCSSS(kernel_cs, kernel_ss);
-
-  SetupIdentifyPageTable();
 
   while (true)
   {

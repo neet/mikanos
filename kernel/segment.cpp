@@ -2,6 +2,7 @@
 
 #include "segment.hpp"
 #include "x86_descriptor.hpp"
+#include "asmfunc.h"
 
 namespace
 {

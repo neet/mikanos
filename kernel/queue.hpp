@@ -80,5 +80,6 @@ size_t ArrayQueue<T>::Capacity() const
 template <typename T>
 const T &ArrayQueue<T>::Front() const
 {
-	return *(data_ + read_pos_);
+	// return *(data_ + read_pos_);
+	return data_[read_pos_];
 }
