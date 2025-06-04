@@ -191,7 +191,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
 
   auto mouse_window = std::make_shared<Window>(
       kMouseCursorWidth, kMouseCursorHeight);
-  mouse_window->SetTransparentColor(kDesktopBGColor);
+  mouse_window->SetTransparentColor(kMouseTransparentColor);
   DrawMouseCursor(mouse_window->Writer(), {0, 0});
 
   layer_manager = new LayerManager;
