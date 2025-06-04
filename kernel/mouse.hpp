@@ -2,6 +2,9 @@
 
 #include "graphics.hpp"
 
+const int kMouseCursorWidth = 15;
+const int kMouseCursorHeight = 24;
+
 class MouseCursor
 {
 public:
@@ -13,3 +16,5 @@ private:
 	PixelColor erase_color_;
 	Vector2D<int> position_;
 };
+
+void DrawMouseCursor(PixelWriter *writer, Vector2D<int> position);

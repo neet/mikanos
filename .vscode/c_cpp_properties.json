@@ -10,11 +10,13 @@
                 "/home/neet/osbook/devenv/x86_64-elf/include/freetype2/**",
                 "/home/neet/osbook/devenv/x86_64-elf/include/**"
             ],
-            "defines": [],
+            "defines": [
+                "_GNU_SOURCE"
+            ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
-            "cppStandard": "c++14",
-            "intelliSenseMode": "linux-clang-arm64"
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
         }
     ],
     "version": 4

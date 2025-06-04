@@ -41,3 +41,18 @@ void DrawRectangle(PixelWriter &writer, const Vector2D<int> &pos, const Vector2D
 		writer.Write(pos.x + size.x - 1, pos.y + dy, c);
 	}
 }
+
+void DrawDesktop(PixelWriter &writer)
+{
+	const auto width = writer.Width();
+	const auto height = writer.Height();
+
+	// 背景
+	FillRectangle(writer, {0, 0}, {width, height - 50}, kDesktopBGColor);
+	// ツールバー
+	FillRectangle(writer, {0, height - 50}, {width, 50}, kDesktopAccentColor);
+	// 「スタート」ボタン
+	FillRectangle(writer, {0, height - 50}, {width / 5, 50}, kDesktopAccent2Color);
+	// Windowsアイコン
+	DrawRectangle(writer, {10, height - 40}, {30, 30}, kDesktopAccentColor);
+}
