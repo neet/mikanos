@@ -27,6 +27,7 @@
 #include "memory_manager.hpp"
 #include "layer.hpp"
 #include "window.hpp"
+#include "timer.hpp"
 
 char pixel_writer_buf[sizeof(RGBResv8BitPerColorPixelWriter)];
 PixelWriter *pixel_writer;
@@ -56,7 +57,11 @@ unsigned int mouse_layer_id;
 void MouseObserver(int8_t displacement_x, int8_t displacement_y)
 {
   layer_manager->MoveRelative(mouse_layer_id, {displacement_x, displacement_y});
+  StartLAPICTimer();
   layer_manager->Draw();
+  auto elapsed = LAPICTimerElapsed();
+  StopLAPICTimer();
+  printk("MouseObserver: elapsed = %u\n", elapsed);
 }
 
 void SwitchEhci2Xhci(const pci::Device &xhc_dev)
@@ -182,12 +187,12 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
 
   DrawDesktop(*bgwriter);
 
-  DrawDesktop(*pixel_writer);
-
   console = new (console_buf) Console{kDesktopFGColor, kDesktopBGColor};
   console->SetWriter(bgwriter);
   printk("Welcome to MikanOS");
   SetLogLevel(kWarn);
+
+  InitializeLAPICTimer();
 
   auto mouse_window = std::make_shared<Window>(
       kMouseCursorWidth, kMouseCursorHeight);
