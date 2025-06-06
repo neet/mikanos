@@ -56,6 +56,7 @@ private:
 		"kUnknownXHCISpeedID",
 		"kNoWaiter",
 		"kNoPCIMSI",
+		"kUnknownPixelFormat",
 	};
 	static_assert(Error::Code::kLastOfCode == code_names_.size());
 

@@ -61,7 +61,19 @@ Error FrameBuffer::Copy(Vector2D<int> pos, const FrameBuffer &src)
 	const int copy_end_dst_x = std::min(pos.x + src_width, dst_width);
 	const int copy_end_dst_y = std::min(pos.y + src_height, dst_height);
 
-	// 休憩ここまで
+	const auto bytes_per_pixel = (bits_per_pixel + 7) / 8;
+	const auto bytes_per_copy_line =
+		bytes_per_pixel * (copy_end_dst_x - copy_start_dst_x);
+
+	uint8_t *dst_buf = config_.frame_buffer + bytes_per_pixel * (config_.pixels_per_scan_line * copy_start_dst_y + copy_start_dst_x);
+	const uint8_t *src_buf = src.config_.frame_buffer;
+
+	for (int dy = 0; dy < copy_end_dst_y - copy_start_dst_y; ++dy)
+	{
+		memcpy(dst_buf, src_buf, bytes_per_copy_line);
+		dst_buf += bytes_per_pixel * config_.pixels_per_scan_line;
+		src_buf += bytes_per_pixel * src.config_.pixels_per_scan_line;
+	}
 
 	return MAKE_ERROR(Error::kSuccess);
 };

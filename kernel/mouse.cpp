@@ -41,15 +41,15 @@ void DrawMouseCursor(PixelWriter *writer, Vector2D<int> position)
 
 			if (c == '@')
 			{
-				writer->Write(position.x + dx, position.y + dy, kMouseCursorBorderColor);
+				writer->Write(position + Vector2D<int>{dx, dy}, kMouseCursorBorderColor);
 			}
 			else if (c == '.')
 			{
-				writer->Write(position.x + dx, position.y + dy, kMouseCursorFillColor);
+				writer->Write(position + Vector2D<int>{dx, dy}, kMouseCursorFillColor);
 			}
 			else
 			{
-				writer->Write(position.x + dx, position.y + dy, kMouseTransparentColor);
+				writer->Write(position + Vector2D<int>{dx, dy}, kMouseTransparentColor);
 			}
 		}
 	}

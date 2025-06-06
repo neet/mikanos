@@ -63,7 +63,7 @@ void Console::Newline()
 		{
 			for (int y = 0; y < kRows * FONT_HEIGHT; ++y)
 			{
-				writer_->Write(x, y, bg_color_);
+				writer_->Write(Vector2D<int>{x, y}, bg_color_);
 			}
 		}
 

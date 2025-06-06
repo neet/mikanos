@@ -9,16 +9,16 @@
 class Window
 {
 public:
-	class WindowWriter // : public PixelWriter
+	class WindowWriter : public PixelWriter
 	{
 	public:
 		WindowWriter(Window &window) : window_{window} {}
-		virtual void Write(Vector2D<int> pos, const PixelColor &c)
+		virtual void Write(Vector2D<int> pos, const PixelColor &c) override
 		{
 			window_.Write(pos, c);
 		}
-		virtual int Width() const { return window_.Width(); }
-		virtual int Height() const { return window_.Height(); }
+		virtual int Width() const override { return window_.Width(); }
+		virtual int Height() const override { return window_.Height(); }
 
 	private:
 		Window &window_;
@@ -35,11 +35,8 @@ public:
 	void SetTransparentColor(std::optional<PixelColor> c);
 	void Write(Vector2D<int> pos, PixelColor c);
 	WindowWriter *Writer();
-
-	// 相対座標？
-	PixelColor &At(int x, int y);
-	// const PixelColor &At(int x, int y) const;
-	// const PixelColor &At(Vector2D<int> pos) const;
+	// 相対座標
+	const PixelColor &At(Vector2D<int> pos) const;
 
 	int Width() const;
 	int Height() const;
