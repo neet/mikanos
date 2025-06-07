@@ -38,6 +38,8 @@ public:
 	// 相対座標
 	const PixelColor &At(Vector2D<int> pos) const;
 
+	void Move(Vector2D<int> dst_pos, const Rectangle<int> &src);
+
 	int Width() const;
 	int Height() const;
 

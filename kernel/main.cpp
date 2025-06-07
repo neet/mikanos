@@ -1,7 +1,6 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstdio>
-#include <cstdlib>
 
 #include <numeric>
 #include <vector>
@@ -46,7 +45,14 @@ int printk(const char *format, ...)
   result = vsprintf(s, format, ap);
   va_end(ap);
 
+  StartLAPICTimer();
   console->PutString(s);
+  auto elapsed = LAPICTimerElapsed();
+  StopLAPICTimer();
+
+  sprintf(s, "[%9d]", elapsed);
+  console->PutString(s);
+
   return result;
 }
 
@@ -177,7 +183,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
   if (auto err = InitializeHeap(*memory_manager))
   {
     Log(kError, "failed to allocate pages: %s at %s:%d\n", err.Name(), err.File(), err.Line());
-    exit(1);
+    // exit(1);
   }
 
   const int kFrameWidth = frame_buffer_config.horizontal_resolution;
@@ -189,7 +195,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
   DrawDesktop(*bgwriter);
 
   console = new (console_buf) Console{kDesktopFGColor, kDesktopBGColor};
-  console->SetWriter(bgwriter);
+  console->SetWindow(bgwindow);
   printk("Welcome to MikanOS");
   SetLogLevel(kWarn);
 
