@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #include "frame_buffer_config.hpp"
 
 struct PixelColor
@@ -30,6 +32,16 @@ struct Vector2D
 		return *this;
 	}
 };
+
+inline Vector2D<int> ElementMin(Vector2D<int> lhs, Vector2D<int> rhs)
+{
+	return Vector2D<int>{std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y)};
+}
+
+inline Vector2D<int> ElementMax(Vector2D<int> lhs, Vector2D<int> rhs)
+{
+	return Vector2D<int>{std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y)};
+}
 
 template <typename T, typename U>
 auto operator+(const Vector2D<T> &lhs, const Vector2D<U> &rhs)
