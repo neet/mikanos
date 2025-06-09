@@ -32,7 +32,7 @@ void Console::Refresh()
 {
 	for (int row = 0; row < kRows; ++row)
 	{
-		WriteString(*writer_, 0, 16 * row, buffer_[row], fg_color_);
+		WriteString(*writer_, {0, 16 * row}, buffer_[row], fg_color_);
 	}
 }
 
@@ -81,7 +81,7 @@ void Console::Newline()
 		for (int row = 0; row < kRows - 1; ++row)
 		{
 			memcpy(buffer_[row], buffer_[row + 1], kColumns + 1);
-			WriteString(*writer_, 0, FONT_HEIGHT * row, buffer_[row], fg_color_);
+			WriteString(*writer_, {0, FONT_HEIGHT * row}, buffer_[row], fg_color_);
 		}
 		memset(buffer_[kRows - 1], 0, kColumns + 1);
 	}

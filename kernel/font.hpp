@@ -6,4 +6,4 @@
 
 void WriteAscii(PixelWriter &writer, int x, int y, char c, const PixelColor &color);
 
-void WriteString(PixelWriter &writer, int x, int y, const char *text, const PixelColor &color);
+void WriteString(PixelWriter &writer, Vector2D<int> pos, const char *text, const PixelColor &color);
