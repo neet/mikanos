@@ -30,7 +30,7 @@ public:
 	Window &operator=(const Window &rhs) = delete;
 
 	// ウィンドウの内容を設定してからこの関数を呼ぶっぽい。
-	void DrawTo(FrameBuffer &dst, Vector2D<int> position);
+	void DrawTo(FrameBuffer &dst, Vector2D<int> position, const Rectangle<int> &area);
 	// transparent_colorというよりは、background_colorみたいなことっぽい
 	void SetTransparentColor(std::optional<PixelColor> c);
 	void Write(Vector2D<int> pos, PixelColor c);
@@ -42,6 +42,8 @@ public:
 
 	int Width() const;
 	int Height() const;
+
+	Vector2D<int> Size() const;
 
 private:
 	int width_, height_;

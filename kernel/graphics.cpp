@@ -16,6 +16,21 @@ void BGRResv8BitPerColorPixelWriter::Write(Vector2D<int> pos, const PixelColor &
 	p[2] = c.r;
 };
 
+void DrawRectangle(PixelWriter &writer, const Vector2D<int> &pos, const Vector2D<int> &size, const PixelColor &c)
+{
+	for (int dx = 0; dx < size.x; ++dx)
+	{
+		writer.Write(Vector2D<int>{pos.x + dx, pos.y}, c);
+		writer.Write(Vector2D<int>{pos.x + dx, pos.y + size.y - 1}, c);
+	}
+
+	for (int dy = 1; dy < size.y - 1; ++dy)
+	{
+		writer.Write(Vector2D<int>{pos.x, pos.y + dy}, c);
+		writer.Write(Vector2D<int>{pos.x + size.x - 1, pos.y + dy}, c);
+	}
+}
+
 void FillRectangle(PixelWriter &writer, const Vector2D<int> &pos, const Vector2D<int> &size, const PixelColor &c)
 {
 	for (int dy = 0; dy < size.y; ++dy)
@@ -26,21 +41,6 @@ void FillRectangle(PixelWriter &writer, const Vector2D<int> &pos, const Vector2D
 		}
 	}
 };
-
-void DrawRectangle(PixelWriter &writer, const Vector2D<int> &pos, const Vector2D<int> &size, const PixelColor &c)
-{
-	for (int dx = 0; dx < size.x; ++dx)
-	{
-		writer.Write(Vector2D<int>{pos.x + dx, pos.y}, c);
-		writer.Write(Vector2D<int>{pos.x + dx, pos.y + size.y - 1}, c);
-	}
-
-	for (int dy = 0; dy < size.y - 1; ++dy)
-	{
-		writer.Write(Vector2D<int>{pos.x, pos.y + dy}, c);
-		writer.Write(Vector2D<int>{pos.x + size.x - 1, pos.y + dy}, c);
-	}
-}
 
 void DrawDesktop(PixelWriter &writer)
 {

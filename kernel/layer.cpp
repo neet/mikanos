@@ -21,6 +21,11 @@ std::shared_ptr<Window> Layer::GetWindow() const
 	return window_;
 }
 
+Vector2D<int> Layer::GetPosition() const
+{
+	return pos_;
+}
+
 Layer &Layer::Move(Vector2D<int> pos)
 {
 	pos_ = pos;
@@ -33,11 +38,11 @@ Layer &Layer::MoveRelative(Vector2D<int> pos_diff)
 	return *this;
 }
 
-void Layer::DrawTo(FrameBuffer &screen) const
+void Layer::DrawTo(FrameBuffer &screen, const Rectangle<int> &area) const
 {
 	if (window_)
 	{
-		window_->DrawTo(screen, pos_);
+		window_->DrawTo(screen, pos_, area);
 	}
 }
 
@@ -52,46 +57,53 @@ Layer &LayerManager::NewLayer()
 	return *layers_.emplace_back(new Layer{latest_id_});
 }
 
-Layer *LayerManager::FindLayer(unsigned int id)
+void LayerManager::Draw(const Rectangle<int> &area) const
 {
-	auto pred = [id](const std::unique_ptr<Layer> &elem)
+	for (auto layer : layer_stack_)
 	{
-		return elem->ID() == id;
-	};
-	auto it = std::find_if(layers_.begin(), layers_.end(), pred);
-	if (it == layers_.end())
-	{
-		return nullptr;
-	};
-	return it->get();
+		layer->DrawTo(*screen_, area);
+	}
 }
 
-void LayerManager::Move(unsigned int id, Vector2D<int> pos)
+void LayerManager::Draw(unsigned int id) const
 {
-	FindLayer(id)->Move(pos);
+	bool draw = false;
+	Rectangle<int> window_area;
+
+	for (auto layer : layer_stack_)
+	{
+		if (layer->ID() == id)
+		{
+			window_area.size = layer->GetWindow()->Size();
+			window_area.pos = layer->GetPosition();
+			draw = true;
+		}
+		// 指定されたレイヤとそれより上にあるレイヤを再描画する。
+		if (draw)
+		{
+			layer->DrawTo(*screen_, window_area);
+		}
+	}
+}
+
+void LayerManager::Move(unsigned int id, Vector2D<int> new_pos)
+{
+	auto layer = FindLayer(id);
+	const auto window_size = layer->GetWindow()->Size();
+	const auto old_pos = layer->GetPosition();
+	layer->Move(new_pos);
+	Draw({old_pos, window_size});
+	Draw(id);
 }
 
 void LayerManager::MoveRelative(unsigned int id, Vector2D<int> pos_diff)
 {
-	FindLayer(id)->MoveRelative(pos_diff);
-}
-
-void LayerManager::Draw()
-{
-	for (auto layer : layer_stack_)
-	{
-		layer->DrawTo(*screen_);
-	}
-}
-
-void LayerManager::Hide(unsigned int id)
-{
 	auto layer = FindLayer(id);
-	auto pos = std::find(layer_stack_.begin(), layer_stack_.end(), layer);
-	if (pos != layer_stack_.end())
-	{
-		layer_stack_.erase(pos);
-	}
+	const auto window_size = layer->GetWindow()->Size();
+	const auto old_pos = layer->GetPosition();
+	layer->MoveRelative(pos_diff);
+	Draw({old_pos, window_size});
+	Draw(id);
 }
 
 void LayerManager::UpDown(unsigned int id, int new_height)
@@ -125,6 +137,30 @@ void LayerManager::UpDown(unsigned int id, int new_height)
 
 	layer_stack_.erase(old_pos);
 	layer_stack_.insert(new_pos, layer);
+}
+
+void LayerManager::Hide(unsigned int id)
+{
+	auto layer = FindLayer(id);
+	auto pos = std::find(layer_stack_.begin(), layer_stack_.end(), layer);
+	if (pos != layer_stack_.end())
+	{
+		layer_stack_.erase(pos);
+	}
+}
+
+Layer *LayerManager::FindLayer(unsigned int id)
+{
+	auto pred = [id](const std::unique_ptr<Layer> &elem)
+	{
+		return elem->ID() == id;
+	};
+	auto it = std::find_if(layers_.begin(), layers_.end(), pred);
+	if (it == layers_.end())
+	{
+		return nullptr;
+	};
+	return it->get();
 }
 
 LayerManager *layer_manager;

@@ -71,7 +71,6 @@ void MouseObserver(int8_t displacement_x, int8_t displacement_y)
   mouse_position = newpos;
 
   layer_manager->Move(mouse_layer_id, mouse_position);
-  layer_manager->Draw();
 }
 
 void SwitchEhci2Xhci(const pci::Device &xhc_dev)
@@ -137,8 +136,14 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
     break;
   }
 
-  screen_size.x = frame_buffer_config.horizontal_resolution;
-  screen_size.y = frame_buffer_config.vertical_resolution;
+  DrawDesktop(*pixel_writer);
+
+  console = new (console_buf) Console{kDesktopFGColor, kDesktopBGColor};
+  console->SetWriter(pixel_writer);
+  printk("Welcome to MikanOS");
+  SetLogLevel(kWarn);
+
+  InitializeLAPICTimer();
 
   SetupSegments();
 
@@ -192,59 +197,6 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
     // exit(1);
   }
 
-  const int kFrameWidth = frame_buffer_config.horizontal_resolution;
-  const int kFrameHeight = frame_buffer_config.vertical_resolution;
-
-  auto bgwindow = std::make_shared<Window>(kFrameWidth, kFrameHeight, frame_buffer_config.pixel_format);
-  auto bgwriter = bgwindow->Writer();
-
-  DrawDesktop(*bgwriter);
-
-  console = new (console_buf) Console{kDesktopFGColor, kDesktopBGColor};
-  console->SetWindow(bgwindow);
-  printk("Welcome to MikanOS");
-  SetLogLevel(kWarn);
-
-  InitializeLAPICTimer();
-
-  auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight, frame_buffer_config.pixel_format);
-  mouse_window->SetTransparentColor(kMouseTransparentColor);
-  DrawMouseCursor(mouse_window->Writer(), {0, 0});
-
-  FrameBuffer screen;
-  if (auto err = screen.Initialize(frame_buffer_config))
-  {
-    Log(kError, "failed to initialize frame buffer: %s at %s:%d\n",
-        err.Name(), err.File(), err.Line());
-  }
-
-  layer_manager = new LayerManager;
-  layer_manager->SetWriter(&screen);
-
-  auto bglayer_id = layer_manager->NewLayer()
-                        .SetWindow(bgwindow)
-                        .Move({0, 0})
-                        .ID();
-  mouse_layer_id = layer_manager->NewLayer()
-                       .SetWindow(mouse_window)
-                       .Move({200, 200})
-                       .ID();
-
-  auto main_window = std::make_shared<Window>(160, 68, frame_buffer_config.pixel_format);
-  DrawWindow(*main_window->Writer(), "Hello Window");
-  WriteString(*main_window->Writer(), {24, 28}, "Welcome to", {0, 0, 0});
-  WriteString(*main_window->Writer(), {24, 44}, "MikanOS world", {0, 0, 0});
-
-  auto main_window_layer_id = layer_manager->NewLayer()
-                                  .SetWindow(main_window)
-                                  .Move({300, 100})
-                                  .ID();
-
-  layer_manager->UpDown(bglayer_id, 0);
-  layer_manager->UpDown(mouse_layer_id, 1);
-  layer_manager->UpDown(main_window_layer_id, 1);
-  layer_manager->Draw();
-
   std::array<Message, 32> main_queue_data;
   ArrayQueue<Message> main_queue{main_queue_data};
   ::main_queue = &main_queue;
@@ -279,8 +231,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
     Log(kInfo, "xHC has been found: %d.%d.%d\n", xhc_dev->bus, xhc_dev->device, xhc_dev->function);
   }
 
-  const uint16_t cs = GetCS();
-  SetIDTEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate, 0), reinterpret_cast<uint64_t>(IntHandlerXHCI), cs);
+  SetIDTEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate, 0), reinterpret_cast<uint64_t>(IntHandlerXHCI), kernel_cs);
   LoadIDT(sizeof(idt) - 1, reinterpret_cast<uintptr_t>(&idt[0]));
 
   const uint8_t bsp_local_apic_id = *reinterpret_cast<const uint32_t *>(0xfee00020) >> 24;
@@ -306,7 +257,6 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
   xhc.Run();
 
   ::xhc = &xhc;
-  __asm__("sti");
 
   usb::HIDMouseDriver::default_observer = MouseObserver;
 
@@ -325,13 +275,75 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
     }
   }
 
+  screen_size.x = frame_buffer_config.horizontal_resolution;
+  screen_size.y = frame_buffer_config.vertical_resolution;
+
+  auto bgwindow = std::make_shared<Window>(screen_size.x, screen_size.y, frame_buffer_config.pixel_format);
+  auto bgwriter = bgwindow->Writer();
+
+  DrawDesktop(*bgwriter);
+
+  auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight, frame_buffer_config.pixel_format);
+  mouse_window->SetTransparentColor(kMouseTransparentColor);
+  DrawMouseCursor(mouse_window->Writer(), {0, 0});
+
+  auto main_window = std::make_shared<Window>(160, 52, frame_buffer_config.pixel_format);
+  DrawWindow(*main_window->Writer(), "Hello window");
+
+  auto console_window = std::make_shared<Window>(Console::kColumns * 8, Console::kRows * 16, frame_buffer_config.pixel_format);
+  // console_window->SetTransparentColor(PixelColor{0, 0, 0});
+  console->SetWindow(console_window);
+
+  FrameBuffer screen;
+  if (auto err = screen.Initialize(frame_buffer_config))
+  {
+    Log(kError, "failed to initialize frame buffer: %s at %s:%d\n",
+        err.Name(), err.File(), err.Line());
+  }
+
+  layer_manager = new LayerManager;
+  layer_manager->SetWriter(&screen);
+
+  auto bglayer_id = layer_manager->NewLayer()
+                        .SetWindow(bgwindow)
+                        .Move({0, 0})
+                        .ID();
+  mouse_layer_id = layer_manager->NewLayer()
+                       .SetWindow(mouse_window)
+                       .Move({200, 200})
+                       .ID();
+  auto main_window_layer_id = layer_manager->NewLayer()
+                                  .SetWindow(main_window)
+                                  .Move({300, 100})
+                                  .ID();
+
+  console->SetLayerID(
+      layer_manager->NewLayer()
+          .SetWindow(console_window)
+          .Move({0, 0})
+          .ID());
+
+  layer_manager->UpDown(bglayer_id, 0);
+  layer_manager->UpDown(console->LayerID(), 1);
+  layer_manager->UpDown(main_window_layer_id, 2);
+  layer_manager->UpDown(mouse_layer_id, 3);
+  layer_manager->Draw({{0, 0}, screen_size});
+
+  char str[128];
+  unsigned int count = 0;
+
   while (true)
   {
-    __asm__("cli");
+    ++count;
+    sprintf(str, "%010u", count);
+    FillRectangle(*main_window->Writer(), {24, 28}, {8 * 10, 16}, {0xc6, 0xc6, 0xc6});
+    WriteString(*main_window->Writer(), {24, 28}, str, {0, 0, 0});
+    layer_manager->Draw(main_window_layer_id);
 
+    __asm__("cli");
     if (main_queue.Count() == 0)
     {
-      __asm__("sti\n\thlt");
+      __asm__("sti");
       continue;
     }
 
