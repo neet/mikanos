@@ -46,6 +46,17 @@ void Layer::DrawTo(FrameBuffer &screen, const Rectangle<int> &area) const
 	}
 }
 
+Layer &Layer::SetDraggable(bool draggable)
+{
+	draggable_ = draggable;
+	return *this;
+}
+
+bool Layer::IsDraggable() const
+{
+	return draggable_;
+}
+
 void LayerManager::SetWriter(FrameBuffer *screen)
 {
 	screen_ = screen;
