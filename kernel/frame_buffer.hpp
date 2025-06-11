@@ -14,6 +14,7 @@ public:
 	Error Copy(Vector2D<int> dst_pos, const FrameBuffer &src, const Rectangle<int> &src_area);
 	FrameBufferWriter &Writer() { return *writer_; };
 	void Move(Vector2D<int> dst_pos, const Rectangle<int> &src);
+	FrameBufferConfig &Config() { return config_; };
 
 private:
 	FrameBufferConfig config_{};
