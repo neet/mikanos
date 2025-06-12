@@ -4,7 +4,7 @@
 #include "font.hpp"
 #include "layer.hpp"
 
-Console::Console(const PixelColor &fg_color, const PixelColor &bg_color) : fg_color_{fg_color}, bg_color_{bg_color}, buffer_{}, cursor_row_{0}, cursor_column_{0}, layer_id_{0} {}
+Console::Console(const PixelColor &fg_color, const PixelColor &bg_color) : writer_{nullptr}, window_{}, fg_color_{fg_color}, bg_color_{bg_color}, buffer_{}, cursor_row_{0}, cursor_column_{0}, layer_id_{0} {}
 
 void Console::PutString(const char *s)
 {
@@ -81,7 +81,7 @@ void Console::Newline()
 		for (int row = 0; row < kRows - 1; ++row)
 		{
 			memcpy(buffer_[row], buffer_[row + 1], kColumns + 1);
-			WriteString(*writer_, {0, 16 * row}, buffer_[row], fg_color_);
+			WriteString(*writer_, Vector2D<int>{0, 16 * row}, buffer_[row], fg_color_);
 		}
 		memset(buffer_[kRows - 1], 0, kColumns + 1);
 	}
@@ -94,4 +94,17 @@ void Console::Refresh()
 	{
 		WriteString(*writer_, Vector2D<int>{0, 16 * row}, buffer_[row], fg_color_);
 	}
+}
+
+Console *console;
+
+namespace
+{
+	char console_buf[sizeof(Console)];
+}
+
+void InitializeConsole()
+{
+	console = new (console_buf) Console{kDesktopFGColor, kDesktopBGColor};
+	console->SetWriter(screen_writer);
 }
