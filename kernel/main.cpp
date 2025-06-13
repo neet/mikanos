@@ -70,7 +70,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
   InitializeGraphics(frame_buffer_config_ref);
   InitializeConsole();
 
-  printk("Welcome to MikanOS");
+  printk("Welcome to MikanOS\n");
   SetLogLevel(kWarn);
 
   InitializeSegmentation();
@@ -86,6 +86,8 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
   InitializeMainWindow();
   InitializeMouse();
   layer_manager->Draw({{0, 0}, ScreenSize()});
+
+  InitializeLAPICTimer();
 
   char str[128];
   unsigned int count = 0;
@@ -113,6 +115,9 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
     {
     case Message::kInterruptXHCI:
       usb::xhci::ProcessEvents();
+      break;
+    case Message::kInterruptLAPICTimer:
+      printk("Timer interrupt\n");
       break;
     default:
       Log(kError, "Unknown message type: %d\n", msg.type);

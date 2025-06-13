@@ -49,9 +49,14 @@ constexpr InterruptDescriptorAttribute MakeIDTAttr(
 
 void SetIDTEntry(InterruptDescriptor &desc, InterruptDescriptorAttribute attr, uint64_t offset, uint16_t segment_selector);
 
-enum InterruptVector
+class InterruptVector
 {
-	kXHCI = 0x40,
+public:
+	enum Number
+	{
+		kXHCI = 0x40,
+		kLAPICTimer = 0x41,
+	};
 };
 
 struct InterruptFrame
@@ -63,6 +68,6 @@ struct InterruptFrame
 	uint64_t ss;
 };
 
-void NotifyEndOfInterrupt();
+__attribute__((no_caller_saved_registers)) void NotifyEndOfInterrupt();
 
 void InitializeInterrupt(std::deque<Message> *main_queue);
