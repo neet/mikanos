@@ -68,6 +68,6 @@ struct InterruptFrame
 	uint64_t ss;
 };
 
-__attribute__((no_caller_saved_registers)) void NotifyEndOfInterrupt();
+void NotifyEndOfInterrupt();
 
 void InitializeInterrupt(std::deque<Message> *main_queue);
