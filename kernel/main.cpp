@@ -6,6 +6,7 @@
 #include <numeric>
 #include <vector>
 
+#include "acpi.hpp"
 #include "frame_buffer_config.hpp"
 #include "graphics.hpp"
 #include "mouse.hpp"
@@ -63,7 +64,10 @@ std::deque<Message> *main_queue;
 alignas(16) uint8_t kernel_main_stack[1024 * 1024];
 
 extern "C" void
-KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const MemoryMap &memory_map_ref)
+KernelMainNewStack(
+    const FrameBufferConfig &frame_buffer_config_ref,
+    const MemoryMap &memory_map_ref,
+    const acpi::RSDP &acpi_table)
 {
   MemoryMap memory_map{memory_map_ref};
 
@@ -87,6 +91,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config_ref, const Memor
   InitializeMouse();
   layer_manager->Draw({{0, 0}, ScreenSize()});
 
+  acpi::Initialize(acpi_table);
   InitializeLAPICTimer(*main_queue);
 
   timer_manager->AddTimer(Timer(200, 2));
