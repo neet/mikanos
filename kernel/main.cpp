@@ -78,6 +78,14 @@ void InitializeTextWindow()
 }
 
 int text_window_index;
+
+void DrawTextCursor(bool visible)
+{
+  const auto color = visible ? ToColor(0x000000) : ToColor(0xffffff);
+  const auto pos = Vector2D<int>{8 + 8 * text_window_index, 24 + 5};
+  FillRectangle(*text_window->Writer(), pos, {1, 15}, color);
+}
+
 void InputTextWindow(char c)
 {
   if (c == 0)
@@ -91,13 +99,17 @@ void InputTextWindow(char c)
   const int max_chars = (text_window->Width() - 16) / 8;
   if (c == '\b' && text_window_index > 0)
   {
+    DrawTextCursor(false);
     --text_window_index;
     FillRectangle(*text_window->Writer(), pos(), {8, 16}, ToColor(0xffffff));
+    DrawTextCursor(true);
   }
   else if (c >= ' ' && text_window_index < max_chars)
   {
+    DrawTextCursor(false);
     WriteAscii(*text_window->Writer(), pos(), c, ToColor(0));
     ++text_window_index;
+    DrawTextCursor(true);
   }
 
   layer_manager->Draw(text_window_layer_id);
@@ -143,6 +155,13 @@ KernelMainNewStack(
 
   InitializeKeyboard(*main_queue);
 
+  const int kTextboxCursorTimer = 1;
+  const int kTimer05Sec = static_cast<int>(kTimerFreq * 0.5);
+  __asm__("cli");
+  timer_manager->AddTimer(Timer{kTimer05Sec, kTextboxCursorTimer});
+  __asm__("sti");
+  bool textbox_cursor_visible = false;
+
   char str[128];
 
   while (true)
@@ -173,10 +192,15 @@ KernelMainNewStack(
       usb::xhci::ProcessEvents();
       break;
     case Message::kTimerTimeout:
-      printk("Timer: timeout = %lu, value = %d\n", msg.arg.timer.timeout, msg.arg.timer.value);
-      if (msg.arg.timer.value > 0)
+      if (msg.arg.timer.value == kTextboxCursorTimer)
       {
-        timer_manager->AddTimer(Timer(msg.arg.timer.timeout + 100, msg.arg.timer.value + 1));
+        __asm__("cli");
+        timer_manager->AddTimer(
+            Timer{msg.arg.timer.timeout + kTimer05Sec, msg.arg.timer.value});
+        __asm__("sti");
+        textbox_cursor_visible = !textbox_cursor_visible;
+        DrawTextCursor(textbox_cursor_visible);
+        layer_manager->Draw(text_window_layer_id);
       }
       break;
     case Message::kKeyPush:

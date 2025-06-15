@@ -23,25 +23,7 @@ template <typename T>
 struct Vector2D
 {
 	T x, y;
-
-	template <typename U>
-	Vector2D<T> &operator+=(const Vector2D<U> &rhs)
-	{
-		x += rhs.x;
-		y += rhs.y;
-		return *this;
-	}
 };
-
-inline Vector2D<int> ElementMin(Vector2D<int> lhs, Vector2D<int> rhs)
-{
-	return Vector2D<int>{std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y)};
-}
-
-inline Vector2D<int> ElementMax(Vector2D<int> lhs, Vector2D<int> rhs)
-{
-	return Vector2D<int>{std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y)};
-}
 
 template <typename T, typename U>
 auto operator+(const Vector2D<T> &lhs, const Vector2D<U> &rhs)
@@ -55,6 +37,24 @@ auto operator-(const Vector2D<T> &lhs, const Vector2D<U> &rhs)
 	-> Vector2D<decltype(lhs.x - rhs.x)>
 {
 	return {lhs.x - rhs.x, lhs.y - rhs.y};
+}
+
+template <typename T, typename U>
+Vector2D<T> &operator+=(Vector2D<T> &lhs, const Vector2D<U> &rhs)
+{
+	lhs.x += rhs.x;
+	lhs.y += rhs.y;
+	return lhs;
+}
+
+inline Vector2D<int> ElementMin(Vector2D<int> lhs, Vector2D<int> rhs)
+{
+	return Vector2D<int>{std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y)};
+}
+
+inline Vector2D<int> ElementMax(Vector2D<int> lhs, Vector2D<int> rhs)
+{
+	return Vector2D<int>{std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y)};
 }
 
 template <typename T>
