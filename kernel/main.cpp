@@ -6,27 +6,27 @@
 #include <numeric>
 #include <vector>
 
-#include "acpi.hpp"
 #include "frame_buffer_config.hpp"
+#include "memory_map.hpp"
 #include "graphics.hpp"
 #include "mouse.hpp"
 #include "font.hpp"
 #include "console.hpp"
 #include "pci.hpp"
 #include "logger.hpp"
-#include "keyboard.hpp"
+#include "usb/xhci/xhci.hpp"
 #include "interrupt.hpp"
 #include "asmfunc.h"
-#include "memory_map.hpp"
 #include "segment.hpp"
 #include "paging.hpp"
 #include "memory_manager.hpp"
-#include "layer.hpp"
 #include "window.hpp"
+#include "layer.hpp"
+#include "message.hpp"
 #include "timer.hpp"
-#include "frame_buffer.hpp"
+#include "acpi.hpp"
+#include "keyboard.hpp"
 #include "task.hpp"
-#include "usb/xhci/xhci.hpp"
 
 int printk(const char *format, ...)
 {
@@ -97,7 +97,7 @@ void InputTextWindow(char c)
   auto pos = []()
   { return Vector2D<int>{8 + 8 * text_window_index, 24 + 6}; };
 
-  const int max_chars = (text_window->Width() - 16) / 8;
+  const int max_chars = (text_window->Width() - 16) / 8 - 1;
   if (c == '\b' && text_window_index > 0)
   {
     DrawTextCursor(false);
@@ -132,10 +132,9 @@ void InitializeTaskBWindow()
   layer_manager->UpDown(task_b_window_layer_id, std::numeric_limits<int>::max());
 }
 
-void TaskB(int task_id, int data)
+void TaskB(uint64_t task_id, int64_t data)
 {
-  printk("TaskB: task_id=%d, data=%d\n", task_id, data);
-
+  printk("TaskB: task_id=%lu, data=%lu\n", task_id, data);
   char str[128];
   int count = 0;
 
@@ -146,6 +145,15 @@ void TaskB(int task_id, int data)
     FillRectangle(*task_b_window->Writer(), {24, 28}, {8 * 10, 16}, {0xc6, 0xc6, 0xc6});
     WriteString(*task_b_window->Writer(), {24, 28}, str, {0, 0, 0});
     layer_manager->Draw(task_b_window_layer_id);
+  }
+}
+
+void TaskIdle(uint64_t task_id, int64_t data)
+{
+  printk("TaskIdle: task_id=%lu, data=%lx\n", task_id, data);
+  while (true)
+  {
+    __asm__("hlt");
   }
 }
 
@@ -186,7 +194,6 @@ KernelMainNewStack(
   InitializeLAPICTimer(*main_queue);
 
   InitializeKeyboard(*main_queue);
-  InitializeTask();
 
   const int kTextboxCursorTimer = 1;
   const int kTimer05Sec = static_cast<int>(kTimerFreq * 0.5);
@@ -195,21 +202,10 @@ KernelMainNewStack(
   __asm__("sti");
   bool textbox_cursor_visible = false;
 
-  std::vector<uint64_t> task_b_stack(1024);
-  uint64_t task_b_stack_end = reinterpret_cast<uint64_t>(&task_b_stack[1024]);
-
-  memset(&task_b_ctx, 0, sizeof(task_b_ctx));
-  task_b_ctx.rip = reinterpret_cast<uint64_t>(TaskB);
-  task_b_ctx.rdi = 1;
-  task_b_ctx.rsi = 43;
-
-  task_b_ctx.cr3 = GetCR3();
-  task_b_ctx.rflags = 0x202;
-  task_b_ctx.cs = kKernelCS;
-  task_b_ctx.ss = kKernelSS;
-  task_b_ctx.rsp = (task_b_stack_end & ~0xflu) - 8;
-
-  *reinterpret_cast<uint32_t *>(&task_b_ctx.fxsave_area[24]) = 0x1f80;
+  InitializeTask();
+  task_manager->NewTask().InitContext(TaskB, 45);
+  task_manager->NewTask().InitContext(TaskIdle, 0xdeadbeef);
+  task_manager->NewTask().InitContext(TaskIdle, 0xcafebabe);
 
   char str[128];
 
@@ -245,7 +241,7 @@ KernelMainNewStack(
       {
         __asm__("cli");
         timer_manager->AddTimer(
-            Timer{msg.arg.timer.timeout + kTimer05Sec, msg.arg.timer.value});
+            Timer{msg.arg.timer.timeout + kTimer05Sec, kTextboxCursorTimer});
         __asm__("sti");
         textbox_cursor_visible = !textbox_cursor_visible;
         DrawTextCursor(textbox_cursor_visible);

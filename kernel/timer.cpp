@@ -12,8 +12,6 @@ namespace
 	volatile uint32_t &divide_config = *reinterpret_cast<uint32_t *>(0xfee003e0);
 }
 
-unsigned long lapic_timer_freq;
-
 void InitializeLAPICTimer(std::deque<Message> &msg_queue)
 {
 	timer_manager = new TimerManager(msg_queue);
@@ -94,6 +92,7 @@ bool TimerManager::Tick()
 }
 
 TimerManager *timer_manager;
+unsigned long lapic_timer_freq;
 
 void LAPICTimerOnInterrupt()
 {
@@ -102,6 +101,6 @@ void LAPICTimerOnInterrupt()
 
 	if (task_timer_timeout)
 	{
-		SwitchTask();
+		task_manager->SwitchTask();
 	}
 }

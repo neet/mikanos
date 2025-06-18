@@ -6,13 +6,14 @@
 class Console
 {
 public:
+	static const int kRows = 25, kColumns = 80;
+
 	Console(const PixelColor &fg_color, const PixelColor &bg_color);
-	unsigned int LayerID() const;
-	void SetLayerID(unsigned int layer_id);
+	void PutString(const char *s);
 	void SetWriter(PixelWriter *writer);
 	void SetWindow(const std::shared_ptr<Window> &window);
-	static const int kRows = 25, kColumns = 80;
-	void PutString(const char *s);
+	void SetLayerID(unsigned int layer_id);
+	unsigned int LayerID() const;
 
 private:
 	void Newline();

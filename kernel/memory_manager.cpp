@@ -43,7 +43,7 @@ Error BitmapMemoryManager::Free(FrameID start_frame, size_t num_frames)
 {
 	for (size_t i = 0; i < num_frames; ++i)
 	{
-		SetBit(FrameID{start_frame.ID() + 1}, false);
+		SetBit(FrameID{start_frame.ID() + i}, false);
 	}
 	return MAKE_ERROR(Error::kSuccess);
 }

@@ -26,8 +26,6 @@ namespace
 
 namespace acpi
 {
-	const FADT *fadt;
-
 	bool RSDP::IsValid() const
 	{
 		if (strncmp(this->signature, "RSD PTR ", 8) != 0)
@@ -85,6 +83,8 @@ namespace acpi
 	{
 		return (this->header.length - sizeof(DescriptionHeader)) / sizeof(uint64_t);
 	}
+
+	const FADT *fadt;
 
 	void WaitMilliseconds(unsigned long msec)
 	{

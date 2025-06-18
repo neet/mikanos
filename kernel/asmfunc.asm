@@ -37,17 +37,6 @@ LoadIDT:
     pop rbp
     ret
 
-extern kernel_main_stack
-extern KernelMainNewStack
-
-global KernelMain
-KernelMain:
-    mov rsp, kernel_main_stack + 1024 * 1024
-    call KernelMainNewStack
-.fin:
-    hlt
-    jmp .fin
-
 global LoadGDT
 LoadGDT:
     push rbp
@@ -58,14 +47,6 @@ LoadGDT:
     lgdt [rsp]
     mov rsp, rbp
     pop rbp
-    ret
-
-global SetDSAll
-SetDSAll:
-    mov ds, di
-    mov es, di
-    mov fs, di
-    mov gs, di
     ret
 
 global SetCSSS
@@ -82,6 +63,14 @@ SetCSSS:
     pop rbp
     ret
 
+global SetDSAll
+SetDSAll:
+    mov ds, di
+    mov es, di
+    mov fs, di
+    mov gs, di
+    ret
+
 global SetCR3
 SetCR3:
     mov cr3, rdi
@@ -91,6 +80,17 @@ global GetCR3
 GetCR3:
     mov rax, cr3
     ret
+
+extern kernel_main_stack
+extern KernelMainNewStack
+
+global KernelMain
+KernelMain:
+    mov rsp, kernel_main_stack + 1024 * 1024
+    call KernelMainNewStack
+.fin:
+    hlt
+    jmp .fin
 
 ; rdi=第1引数, rsi=第2引数
 ; `mov dst, src` 等号と同じ順番だと思ったほうがいい

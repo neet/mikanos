@@ -15,10 +15,11 @@ public:
 	std::shared_ptr<Window> GetWindow() const;
 	Vector2D<int> GetPosition() const;
 
-	Layer &Move(Vector2D<int> pos);
-	Layer &MoveRelative(Vector2D<int> pos_diff);
 	Layer &SetDraggable(bool draggable);
 	bool IsDraggable() const;
+
+	Layer &Move(Vector2D<int> pos);
+	Layer &MoveRelative(Vector2D<int> pos_diff);
 
 	void DrawTo(FrameBuffer &screen, const Rectangle<int> &area) const;
 

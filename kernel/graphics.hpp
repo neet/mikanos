@@ -9,6 +9,15 @@ struct PixelColor
 	uint8_t r, g, b;
 };
 
+constexpr PixelColor ToColor(uint32_t c)
+{
+	uint8_t r = c >> 16 & 0xff;
+	uint8_t g = c >> 8 & 0xff;
+	uint8_t b = c >> 0 & 0xff;
+
+	return PixelColor{r, g, b};
+}
+
 inline bool operator==(const PixelColor &lhs, const PixelColor &rhs)
 {
 	return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b;
@@ -47,14 +56,14 @@ Vector2D<T> &operator+=(Vector2D<T> &lhs, const Vector2D<U> &rhs)
 	return lhs;
 }
 
-inline Vector2D<int> ElementMin(Vector2D<int> lhs, Vector2D<int> rhs)
-{
-	return Vector2D<int>{std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y)};
-}
-
 inline Vector2D<int> ElementMax(Vector2D<int> lhs, Vector2D<int> rhs)
 {
 	return Vector2D<int>{std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y)};
+}
+
+inline Vector2D<int> ElementMin(Vector2D<int> lhs, Vector2D<int> rhs)
+{
+	return Vector2D<int>{std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y)};
 }
 
 template <typename T>
@@ -137,12 +146,3 @@ extern PixelWriter *screen_writer;
 Vector2D<int> ScreenSize();
 
 void InitializeGraphics(const FrameBufferConfig &screen_config);
-
-constexpr PixelColor ToColor(uint32_t c)
-{
-	uint8_t r = c >> 16 & 0xff;
-	uint8_t g = c >> 8 & 0xff;
-	uint8_t b = c >> 0 & 0xff;
-
-	return PixelColor{r, g, b};
-}

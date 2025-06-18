@@ -33,17 +33,17 @@ public:
 	void DrawTo(FrameBuffer &dst, Vector2D<int> position, const Rectangle<int> &area);
 	// transparent_colorというよりは、background_colorみたいなことっぽい
 	void SetTransparentColor(std::optional<PixelColor> c);
-	void Write(Vector2D<int> pos, PixelColor c);
 	WindowWriter *Writer();
 	// 相対座標
 	const PixelColor &At(Vector2D<int> pos) const;
-
-	void Move(Vector2D<int> dst_pos, const Rectangle<int> &src);
+	void Write(Vector2D<int> pos, PixelColor c);
 
 	int Width() const;
 	int Height() const;
 
 	Vector2D<int> Size() const;
+
+	void Move(Vector2D<int> dst_pos, const Rectangle<int> &src);
 
 private:
 	int width_, height_;

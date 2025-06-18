@@ -1,4 +1,5 @@
 #include "layer.hpp"
+
 #include "graphics.hpp"
 #include "console.hpp"
 #include "logger.hpp"
@@ -28,6 +29,17 @@ Vector2D<int> Layer::GetPosition() const
 	return pos_;
 }
 
+Layer &Layer::SetDraggable(bool draggable)
+{
+	draggable_ = draggable;
+	return *this;
+}
+
+bool Layer::IsDraggable() const
+{
+	return draggable_;
+}
+
 Layer &Layer::Move(Vector2D<int> pos)
 {
 	pos_ = pos;
@@ -46,17 +58,6 @@ void Layer::DrawTo(FrameBuffer &screen, const Rectangle<int> &area) const
 	{
 		window_->DrawTo(screen, pos_, area);
 	}
-}
-
-Layer &Layer::SetDraggable(bool draggable)
-{
-	draggable_ = draggable;
-	return *this;
-}
-
-bool Layer::IsDraggable() const
-{
-	return draggable_;
 }
 
 void LayerManager::SetWriter(FrameBuffer *screen)
@@ -168,20 +169,6 @@ void LayerManager::Hide(unsigned int id)
 	}
 }
 
-Layer *LayerManager::FindLayer(unsigned int id)
-{
-	auto pred = [id](const std::unique_ptr<Layer> &elem)
-	{
-		return elem->ID() == id;
-	};
-	auto it = std::find_if(layers_.begin(), layers_.end(), pred);
-	if (it == layers_.end())
-	{
-		return nullptr;
-	};
-	return it->get();
-}
-
 Layer *LayerManager::FindLayerByPosition(Vector2D<int> pos, unsigned int exclude_id)
 {
 	Layer *match = nullptr;
@@ -208,6 +195,20 @@ Layer *LayerManager::FindLayerByPosition(Vector2D<int> pos, unsigned int exclude
 	}
 
 	return match;
+}
+
+Layer *LayerManager::FindLayer(unsigned int id)
+{
+	auto pred = [id](const std::unique_ptr<Layer> &elem)
+	{
+		return elem->ID() == id;
+	};
+	auto it = std::find_if(layers_.begin(), layers_.end(), pred);
+	if (it == layers_.end())
+	{
+		return nullptr;
+	};
+	return it->get();
 }
 
 namespace

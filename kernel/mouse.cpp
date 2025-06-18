@@ -60,6 +60,12 @@ void DrawMouseCursor(PixelWriter *writer, Vector2D<int> position)
 
 Mouse::Mouse(unsigned int layer_id) : layer_id_{layer_id} {}
 
+void Mouse::SetPosition(Vector2D<int> position)
+{
+	position_ = position;
+	layer_manager->Move(layer_id_, position_);
+}
+
 void Mouse::OnInterrupt(uint8_t buttons, int8_t displacement_x, int8_t displacement_y)
 {
 	const auto oldpos = position_;
@@ -95,12 +101,6 @@ void Mouse::OnInterrupt(uint8_t buttons, int8_t displacement_x, int8_t displacem
 	}
 
 	previous_buttons_ = buttons;
-}
-
-void Mouse::SetPosition(Vector2D<int> position)
-{
-	position_ = position;
-	layer_manager->Move(layer_id_, position_);
 }
 
 void InitializeMouse()

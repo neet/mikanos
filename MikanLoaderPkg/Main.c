@@ -1,5 +1,4 @@
 #include <Uefi.h>
-#include <elf.h>
 #include <Library/UefiLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/PrintLib.h>
@@ -12,16 +11,8 @@
 #include <Guid/FileInfo.h>
 #include <Guid/Acpi.h>
 #include "frame_buffer_config.hpp"
-
-struct MemoryMap
-{
-	UINTN buffer_size;
-	VOID *buffer;
-	UINTN map_size;
-	UINTN map_key;
-	UINTN descriptor_size;
-	UINT32 descriptor_version;
-};
+#include "memory_map.hpp"
+#include "elf.hpp"
 
 EFI_STATUS GetMemoryMap(struct MemoryMap *map)
 {
