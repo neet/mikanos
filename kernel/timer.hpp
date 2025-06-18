@@ -32,7 +32,7 @@ class TimerManager
 public:
 	TimerManager(std::deque<Message> &msg_queue);
 	void AddTimer(const Timer &timer);
-	void Tick();
+	bool Tick();
 	unsigned long CurrentTick() const { return tick_; }
 
 private:
@@ -46,3 +46,6 @@ extern unsigned long lapic_timer_freq;
 const int kTimerFreq = 100;
 
 void LAPICTimerOnInterrupt();
+
+const int kTaskTimerPeriod = static_cast<int>(kTimerFreq * 1.0);
+const int kTaskTimerValue = std::numeric_limits<int>::min();
