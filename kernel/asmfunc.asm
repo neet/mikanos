@@ -25,45 +25,45 @@ GetCS:
     mov ax, cs
     ret
 
-global LoadIDT ; void LoadIDT(uint16_t limit, uint64_t offset);
+global LoadIDT  ; void LoadIDT(uint16_t limit, uint64_t offset);
 LoadIDT:
     push rbp
     mov rbp, rsp
     sub rsp, 10
-    mov [rsp], di
-    mov [rsp + 2], rsi
+    mov [rsp], di  ; limit
+    mov [rsp + 2], rsi  ; offset
     lidt [rsp]
     mov rsp, rbp
     pop rbp
     ret
 
-global LoadGDT
+global LoadGDT  ; void LoadGDT(uint16_t limit, uint64_t offset);
 LoadGDT:
     push rbp
     mov rbp, rsp
     sub rsp, 10
-    mov [rsp], di
-    mov [rsp + 2], rsi
+    mov [rsp], di  ; limit
+    mov [rsp + 2], rsi  ; offset
     lgdt [rsp]
     mov rsp, rbp
     pop rbp
     ret
 
-global SetCSSS
+global SetCSSS  ; void SetCSSS(uint16_t cs, uint16_t ss);
 SetCSSS:
     push rbp
     mov rbp, rsp
     mov ss, si
     mov rax, .next
-    push rdi
-    push rax
+    push rdi    ; CS
+    push rax    ; RIP
     o64 retf
 .next:
     mov rsp, rbp
     pop rbp
     ret
 
-global SetDSAll
+global SetDSAll  ; void SetDSAll(uint16_t value);
 SetDSAll:
     mov ds, di
     mov es, di
@@ -71,12 +71,12 @@ SetDSAll:
     mov gs, di
     ret
 
-global SetCR3
+global SetCR3  ; void SetCR3(uint64_t value);
 SetCR3:
     mov cr3, rdi
     ret
 
-global GetCR3
+global GetCR3  ; uint64_t GetCR3();
 GetCR3:
     mov rax, cr3
     ret
@@ -92,10 +92,8 @@ KernelMain:
     hlt
     jmp .fin
 
-; rdi=第1引数, rsi=第2引数
-; `mov dst, src` 等号と同じ順番だと思ったほうがいい
 global SwitchContext
-SwitchContext:
+SwitchContext:  ; void SwitchContext(void* next_ctx, void* current_ctx);
     mov [rsi + 0x40], rax
     mov [rsi + 0x48], rbx
     mov [rsi + 0x50], rcx
@@ -103,11 +101,8 @@ SwitchContext:
     mov [rsi + 0x60], rdi
     mov [rsi + 0x68], rsi
 
-    ; いまスタックの先頭は戻り先アドレス、つまり SwitchContext() の次の行になっている
-    ; ので、戻り先アドレスの分をスキップして、１個前のスタックを RAX に取り出す
     lea rax, [rsp + 8]
-    ; それを task_a_ctx.rsp にいれる
-    mov [rsi + 0x70], rax
+    mov [rsi + 0x70], rax  ; RSP
     mov [rsi + 0x78], rbp
 
     mov [rsi + 0x80], r8
@@ -119,15 +114,12 @@ SwitchContext:
     mov [rsi + 0xb0], r14
     mov [rsi + 0xb8], r15
 
-
     mov rax, cr3
-    mov [rsi + 0x00], rax
-    ; RSP には、 CALL によって戻り先アドレスが入っている。それを RAX に入れて
-    mov rax, [rsp] 
-    ; RAX を task_a_ctx.rip に入れる
-    mov [rsi + 0x08], rax
+    mov [rsi + 0x00], rax  ; CR3
+    mov rax, [rsp]
+    mov [rsi + 0x08], rax  ; RIP
     pushfq
-    pop qword [rsi + 0x10]
+    pop qword [rsi + 0x10] ; RFLAGS
 
     mov ax, cs
     mov [rsi + 0x20], rax
@@ -136,44 +128,42 @@ SwitchContext:
     mov cx, fs
     mov [rsi + 0x30], rcx
     mov dx, gs
-    mov [rsi + 0x30], rdx
+    mov [rsi + 0x38], rdx
 
     fxsave [rsi + 0xc0]
-    
+
     ; iret 用のスタックフレーム
-    ; RIP, CS, RFLAGS, RSP, SS に載っていてほしい情報をスタックに積んでおいて
-    ; そのあとで iret を実行すると、それが積まれた状態で呼び出し元に戻るらしい
-    push qword [rdi + 0x28]
-    push qword [rdi + 0x70]
-    push qword [rdi + 0x10]
-    push qword [rdi + 0x20]
-    push qword [rdi + 0x08]
+    push qword [rdi + 0x28] ; SS
+    push qword [rdi + 0x70] ; RSP
+    push qword [rdi + 0x10] ; RFLAGS
+    push qword [rdi + 0x20] ; CS
+    push qword [rdi + 0x08] ; RIP
 
     ; コンテキストの復帰
-   fxrstor [rdi + 0xc0]
+    fxrstor [rdi + 0xc0]
 
-   mov rax, [rdi + 0x00]
-   mov cr3, rax
-   mov rax, [rdi + 0x30]
-   mov fs, ax
-   mov rax, [rdi + 0x38]
-   mov gs, ax
+    mov rax, [rdi + 0x00]
+    mov cr3, rax
+    mov rax, [rdi + 0x30]
+    mov fs, ax
+    mov rax, [rdi + 0x38]
+    mov gs, ax
 
-   mov rax, [rdi + 0x40]
-   mov rbx, [rdi + 0x48]
-   mov rcx, [rdi + 0x50]
-   mov rdx, [rdi + 0x58]
-   mov rsi, [rdi + 0x68]
-   mov rbp, [rdi + 0x78]
-   mov r8, [rdi + 0x80]
-   mov r9, [rdi + 0x88]
-   mov r10, [rdi + 0x90]
-   mov r11, [rdi + 0x98]
-   mov r12, [rdi + 0xa0]
-   mov r13, [rdi + 0xa8]
-   mov r14, [rdi + 0xb0]
-   mov r15, [rdi + 0xb8]
+    mov rax, [rdi + 0x40]
+    mov rbx, [rdi + 0x48]
+    mov rcx, [rdi + 0x50]
+    mov rdx, [rdi + 0x58]
+    mov rsi, [rdi + 0x68]
+    mov rbp, [rdi + 0x78]
+    mov r8,  [rdi + 0x80]
+    mov r9,  [rdi + 0x88]
+    mov r10, [rdi + 0x90]
+    mov r11, [rdi + 0x98]
+    mov r12, [rdi + 0xa0]
+    mov r13, [rdi + 0xa8]
+    mov r14, [rdi + 0xb0]
+    mov r15, [rdi + 0xb8]
 
-   mov rdi, [rdi + 0x60]
+    mov rdi, [rdi + 0x60]
 
-   o64 iret
+    o64 iret
