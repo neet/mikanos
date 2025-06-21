@@ -76,7 +76,15 @@
 		"semaphore": "cpp",
 		"stop_token": "cpp",
 		"thread": "cpp",
-		"cinttypes": "cpp"
+		"cinttypes": "cpp",
+		"forward_list": "cpp",
+		"list": "cpp",
+		"map": "cpp",
+		"executor": "cpp",
+		"io_context": "cpp",
+		"netfwd": "cpp",
+		"timer": "cpp",
+		"future": "cpp"
 	},
 	"files.exclude": {
 		"**/*.o": true,

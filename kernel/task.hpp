@@ -2,6 +2,9 @@
 #include <cstddef>
 #include <vector>
 #include <cstdint>
+#include <deque>
+
+#include "error.hpp"
 
 struct TaskContext
 {
@@ -19,6 +22,11 @@ class Task
 public:
 	static const size_t kDefaultStackBytes = 4096;
 	Task(uint64_t id);
+
+	uint64_t ID() const;
+	Task &Sleep();
+	Task &Wakeup();
+
 	Task &InitContext(TaskFunc *f, int64_t data);
 	TaskContext &Context();
 
@@ -33,12 +41,19 @@ class TaskManager
 public:
 	TaskManager();
 	Task &NewTask();
-	void SwitchTask();
+	void SwitchTask(bool current_sleep = false);
+
+	void Sleep(Task *task);
+	Error Sleep(uint64_t id);
+	void Wakeup(Task *task);
+	Error Wakeup(uint64_t id);
 
 private:
+	// 全ての状態のタスクが入っている
 	std::vector<std::unique_ptr<Task>> tasks_{};
 	uint64_t latest_id_{0};
-	size_t current_task_index_{0};
+	// 実行可能状態のタスクが入っている
+	std::deque<Task *> running_{};
 };
 
 extern TaskManager *task_manager;
