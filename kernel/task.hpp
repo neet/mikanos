@@ -3,7 +3,9 @@
 #include <vector>
 #include <cstdint>
 #include <deque>
+#include <optional>
 
+#include "message.hpp"
 #include "error.hpp"
 
 struct TaskContext
@@ -30,10 +32,14 @@ public:
 	Task &InitContext(TaskFunc *f, int64_t data);
 	TaskContext &Context();
 
+	void SendMessage(const Message &msg);
+	std::optional<Message> ReceiveMessage();
+
 private:
 	uint64_t id_;
 	std::vector<uint64_t> stack_;
 	alignas(16) TaskContext context_;
+	std::deque<Message> msgs_;
 };
 
 class TaskManager
@@ -42,11 +48,13 @@ public:
 	TaskManager();
 	Task &NewTask();
 	void SwitchTask(bool current_sleep = false);
+	Task &CurrentTask();
 
 	void Sleep(Task *task);
 	Error Sleep(uint64_t id);
 	void Wakeup(Task *task);
 	Error Wakeup(uint64_t id);
+	Error SendMessage(uint64_t id, const Message &msg);
 
 private:
 	// 全ての状態のタスクが入っている
