@@ -19,6 +19,8 @@ struct TaskContext
 
 using TaskFunc = void(uint64_t, int64_t);
 
+static const unsigned int kDefaultLevel = 1;
+
 class Task
 {
 public:
@@ -35,33 +37,59 @@ public:
 	void SendMessage(const Message &msg);
 	std::optional<Message> ReceiveMessage();
 
+	unsigned int Level() { return level_; }
+	bool Running() { return running_; }
+
 private:
 	uint64_t id_;
 	std::vector<uint64_t> stack_;
 	alignas(16) TaskContext context_;
 	std::deque<Message> msgs_;
+	unsigned int level_{kDefaultLevel};
+	bool running_{false};
+
+	Task &SetLevel(int level)
+	{
+		level_ = level;
+		return *this;
+	}
+
+	Task &SetRunning(bool running)
+	{
+		running_ = running;
+		return *this;
+	}
+
+	friend class TaskManager;
 };
 
 class TaskManager
 {
 public:
+	static const int kMaxLevel = 3;
+
 	TaskManager();
 	Task &NewTask();
+	// current_sleep = 実行中のタスクをスリープさせてから次へ移る
 	void SwitchTask(bool current_sleep = false);
-	Task &CurrentTask();
 
 	void Sleep(Task *task);
 	Error Sleep(uint64_t id);
-	void Wakeup(Task *task);
-	Error Wakeup(uint64_t id);
+	void Wakeup(Task *task, int level = -1);
+	Error Wakeup(uint64_t id, int level = -1);
 	Error SendMessage(uint64_t id, const Message &msg);
+	Task &CurrentTask();
 
 private:
 	// 全ての状態のタスクが入っている
 	std::vector<std::unique_ptr<Task>> tasks_{};
 	uint64_t latest_id_{0};
 	// 実行可能状態のタスクが入っている
-	std::deque<Task *> running_{};
+	std::array<std::deque<Task *>, kMaxLevel + 1> running_{};
+	int current_level_{kMaxLevel};
+	bool level_changed_{false};
+
+	void ChangeLevelRunning(Task *task, int level);
 };
 
 extern TaskManager *task_manager;
