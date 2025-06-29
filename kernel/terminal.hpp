@@ -4,6 +4,7 @@
 
 #include "window.hpp"
 #include "graphics.hpp"
+#include "message.hpp"
 
 class Terminal
 {
@@ -12,7 +13,7 @@ public:
 
 	Terminal();
 	unsigned int LayerID() const { return layer_id_; }
-	void BlinkCursor();
+	Rectangle<int> BlinkCursor();
 
 private:
 	std::shared_ptr<ToplevelWindow> window_;
@@ -23,3 +24,15 @@ private:
 };
 
 void TaskTerminal(uint64_t task_id, int64_t data);
+
+constexpr Message MakeLayerMessage(uint64_t task_id, unsigned int layer_id, LayerOperation op, const Rectangle<int> &area)
+{
+	Message msg{Message::kLayer, task_id};
+	msg.arg.layer.layer_id = layer_id;
+	msg.arg.layer.op = op;
+	msg.arg.layer.x = area.pos.x;
+	msg.arg.layer.y = area.pos.y;
+	msg.arg.layer.w = area.size.x;
+	msg.arg.layer.h = area.size.y;
+	return msg;
+}
