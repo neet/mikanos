@@ -19,26 +19,24 @@ struct TaskContext
 
 using TaskFunc = void(uint64_t, int64_t);
 
-static const unsigned int kDefaultLevel = 1;
-
 class Task
 {
 public:
+	static const int kDefaultLevel = 1;
 	static const size_t kDefaultStackBytes = 4096;
-	Task(uint64_t id);
 
+	Task(uint64_t id);
+	Task &InitContext(TaskFunc *f, int64_t data);
+	TaskContext &Context();
 	uint64_t ID() const;
 	Task &Sleep();
 	Task &Wakeup();
 
-	Task &InitContext(TaskFunc *f, int64_t data);
-	TaskContext &Context();
-
 	void SendMessage(const Message &msg);
 	std::optional<Message> ReceiveMessage();
 
-	unsigned int Level() { return level_; }
-	bool Running() { return running_; }
+	int Level() const { return level_; }
+	bool Running() const { return running_; }
 
 private:
 	uint64_t id_;

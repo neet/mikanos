@@ -23,7 +23,7 @@ namespace
 	}
 }
 
-Task::Task(uint64_t id) : id_{id}
+Task::Task(uint64_t id) : id_{id}, msgs_{}
 {
 }
 
@@ -232,8 +232,6 @@ Task &TaskManager::CurrentTask()
 	return *running_[current_level_].front();
 }
 
-TaskManager *task_manager;
-
 void TaskManager::ChangeLevelRunning(Task *task, int level)
 {
 	if (level < 0 || level == task->Level())
@@ -270,6 +268,8 @@ void TaskManager::ChangeLevelRunning(Task *task, int level)
 		level_changed_ = true;
 	}
 }
+
+TaskManager *task_manager;
 
 void InitializeTask()
 {
