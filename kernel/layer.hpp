@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <map>
 
 #include "window.hpp"
 #include "graphics.hpp"
@@ -57,6 +58,8 @@ private:
 };
 
 extern LayerManager *layer_manager;
+// layer_id -> task_id
+extern std::map<unsigned int, uint64_t> *layer_task_map;
 
 class ActiveLayer
 {
