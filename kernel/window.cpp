@@ -2,6 +2,25 @@
 #include "logger.hpp"
 #include "font.hpp"
 
+namespace
+{
+	void DrawTextbox(PixelWriter &writer, Vector2D<int> pos, Vector2D<int> size, const PixelColor &background, const PixelColor &border_light, const PixelColor &border_dark)
+	{
+		auto fill_rect =
+			[&writer](Vector2D<int> pos, Vector2D<int> size, const PixelColor &c)
+		{
+			FillRectangle(writer, pos, size, c);
+		};
+
+		fill_rect(pos + Vector2D<int>{1, 1}, size - Vector2D<int>{2, 2}, background);
+
+		fill_rect(pos, {size.x, 1}, border_dark);
+		fill_rect(pos, {1, size.y}, border_dark);
+		fill_rect(pos + Vector2D<int>{0, size.y}, {size.x, 1}, border_light);
+		fill_rect(pos + Vector2D<int>{size.x, 0}, {1, size.y}, border_light);
+	}
+}
+
 Window::Window(int width, int height, PixelFormat shadow_format) : width_{width}, height_{height}
 {
 	data_.resize(height);
@@ -131,22 +150,6 @@ namespace
 		".$$$$$$$$$$$$$$@",
 		"@@@@@@@@@@@@@@@@",
 	};
-
-	void DrawTextbox(PixelWriter &writer, Vector2D<int> pos, Vector2D<int> size, const PixelColor &background, const PixelColor &border_light, const PixelColor &border_dark)
-	{
-		auto fill_rect =
-			[&writer](Vector2D<int> pos, Vector2D<int> size, const PixelColor &c)
-		{
-			FillRectangle(writer, pos, size, c);
-		};
-
-		fill_rect(pos + Vector2D<int>{1, 1}, size - Vector2D<int>{2, 2}, background);
-
-		fill_rect(pos, {size.x, 1}, border_dark);
-		fill_rect(pos, {1, size.y}, border_dark);
-		fill_rect(pos + Vector2D<int>{0, size.y}, {size.x, 1}, border_light);
-		fill_rect(pos + Vector2D<int>{size.x, 0}, {1, size.y}, border_light);
-	}
 }
 
 void DrawWindow(PixelWriter &writer, const char *title)

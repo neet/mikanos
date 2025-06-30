@@ -86,7 +86,7 @@ void LayerManager::Draw(const Rectangle<int> &area) const
 
 void LayerManager::Draw(unsigned int id) const
 {
-	LayerManager::Draw(id, {{0, 0}, {-1, -1}});
+	Draw(id, {{0, 0}, {-1, -1}});
 }
 
 void LayerManager::Draw(unsigned int id, Rectangle<int> area) const
@@ -310,6 +310,8 @@ void InitializeLayer()
 	layer_manager->UpDown(console->LayerID(), 1);
 
 	active_layer = new ActiveLayer{*layer_manager};
+
+	layer_task_map = new std::map<unsigned int, uint64_t>;
 }
 
 void ProcessLayerMessage(const Message &msg)

@@ -1,6 +1,8 @@
-#include <map>
-
 #include "terminal.hpp"
+
+#include <map>
+#include <cstring>
+
 #include "layer.hpp"
 #include "task.hpp"
 #include "window.hpp"
@@ -22,6 +24,27 @@ Terminal::Terminal()
 					.SetWindow(window_)
 					.SetDraggable(true)
 					.ID();
+
+	Print(">");
+}
+
+Rectangle<int> Terminal::BlinkCursor()
+{
+	cursor_visible_ = !cursor_visible_;
+	DrawCursor(cursor_visible_);
+
+	return {CalcCursorPos(), {7, 15}};
+}
+
+void Terminal::DrawCursor(bool visible)
+{
+	const auto color = visible ? ToColor(0xffffff) : ToColor(0);
+	FillRectangle(*window_->Writer(), CalcCursorPos(), {7, 15}, color);
+}
+
+Vector2D<int> Terminal::CalcCursorPos() const
+{
+	return ToplevelWindow::kTopLeftMargin + Vector2D<int>{4 + 8 * cursor_.x, 4 + 16 * cursor_.y};
 }
 
 Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
@@ -38,7 +61,6 @@ Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
 		// 左に戻す
 		linebuf_index_ = 0;
 		cursor_.x = 0;
-		Log(kWarn, "line: %s\n", &linebuf_[0]);
 		if (cursor_.y < kRows - 1)
 		{
 			++cursor_.y;
@@ -47,6 +69,8 @@ Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
 		{
 			Scroll1();
 		}
+		ExecuteLine();
+		Print(">");
 		// 全体を再描画（まだ最適化できそう）
 		draw_area.pos = ToplevelWindow::kTopLeftMargin;
 		draw_area.size = window_->InnerSize();
@@ -81,25 +105,6 @@ Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
 	return draw_area;
 }
 
-Rectangle<int> Terminal::BlinkCursor()
-{
-	cursor_visible_ = !cursor_visible_;
-	DrawCursor(cursor_visible_);
-	return {ToplevelWindow::kTopLeftMargin + Vector2D<int>{4 + 8 * cursor_.x, 5 + 16 * cursor_.y}, {7, 15}};
-}
-
-void Terminal::DrawCursor(bool visible)
-{
-	const auto color = visible ? ToColor(0xffffff) : ToColor(0x000000);
-	const auto pos = Vector2D<int>{4 + 8 * cursor_.x, 5 + 16 * cursor_.y};
-	FillRectangle(*window_->InnerWriter(), pos, {7, 15}, color);
-}
-
-Vector2D<int> Terminal::CalcCursorPos() const
-{
-	return ToplevelWindow::kTopLeftMargin + Vector2D<int>{4 + 8 * cursor_.x, 4 + 16 * cursor_.y};
-}
-
 void Terminal::Scroll1()
 {
 	Rectangle<int> move_src{
@@ -107,6 +112,82 @@ void Terminal::Scroll1()
 		{8 * kColumns, 16 * (kRows - 1)},
 	};
 	window_->Move(ToplevelWindow::kTopLeftMargin + Vector2D<int>{4, 4}, move_src);
+	FillRectangle(*window_->InnerWriter(),
+				  {4, 4 + 16 * cursor_.y}, {8 * kColumns, 16}, {0, 0, 0});
+}
+
+void Terminal::ExecuteLine()
+{
+	char *command = &linebuf_[0];
+	char *first_arg = strchr(&linebuf_[0], ' ');
+
+	if (first_arg)
+	{
+		*first_arg = 0;
+		++first_arg;
+	}
+
+	if (strcmp(command, "echo") == 0)
+	{
+		if (first_arg)
+		{
+			Print(first_arg);
+		}
+		Print("\n");
+	}
+	else if (strcmp(command, "clear") == 0)
+	{
+		FillRectangle(*window_->InnerWriter(), {4, 4}, {8 * kColumns, 16 * kRows}, {0, 0, 0});
+		cursor_.y = 0;
+	}
+	else if (command[0] != 0)
+	{
+		Print("no such command: ");
+		Print(command);
+		Print("\n");
+	}
+}
+
+void Terminal::Print(const char *s)
+{
+	DrawCursor(false);
+
+	auto newline = [this]()
+	{
+		cursor_.x = 0;
+		if (cursor_.y < kRows - 1)
+		{
+			++cursor_.y;
+		}
+		else
+		{
+			Scroll1();
+		}
+	};
+
+	while (*s)
+	{
+		if (*s == '\n')
+		{
+			newline();
+		}
+		else
+		{
+			WriteAscii(*window_->Writer(), CalcCursorPos(), *s, {255, 255, 255});
+			if (cursor_.x == kColumns - 1)
+			{
+				newline();
+			}
+			else
+			{
+				++cursor_.x;
+			}
+		}
+
+		++s;
+	}
+
+	DrawCursor(true);
 }
 
 void TaskTerminal(uint64_t task_id, int64_t data)
@@ -139,8 +220,8 @@ void TaskTerminal(uint64_t task_id, int64_t data)
 			__asm__("cli");
 			task_manager->SendMessage(1, msg);
 			__asm__("sti");
-			break;
 		}
+		break;
 		case Message::kKeyPush:
 		{
 			const auto area = terminal->InputKey(msg->arg.keyboard.modifier, msg->arg.keyboard.keycode, msg->arg.keyboard.ascii);
@@ -148,8 +229,8 @@ void TaskTerminal(uint64_t task_id, int64_t data)
 			__asm__("cli");
 			task_manager->SendMessage(1, msg);
 			__asm__("sti");
-			break;
 		}
+		break;
 		default:
 			break;
 		}

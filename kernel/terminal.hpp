@@ -9,8 +9,8 @@
 class Terminal
 {
 public:
-	static const int kLineMax = 128;
 	static const int kRows = 15, kColumns = 60;
+	static const int kLineMax = 128;
 
 	Terminal();
 	unsigned int LayerID() const { return layer_id_; }
@@ -29,18 +29,8 @@ private:
 	int linebuf_index_{0};
 	std::array<char, kLineMax> linebuf_{};
 	void Scroll1();
+	void ExecuteLine();
+	void Print(const char *s);
 };
 
 void TaskTerminal(uint64_t task_id, int64_t data);
-
-constexpr Message MakeLayerMessage(uint64_t task_id, unsigned int layer_id, LayerOperation op, const Rectangle<int> &area)
-{
-	Message msg{Message::kLayer, task_id};
-	msg.arg.layer.layer_id = layer_id;
-	msg.arg.layer.op = op;
-	msg.arg.layer.x = area.pos.x;
-	msg.arg.layer.y = area.pos.y;
-	msg.arg.layer.w = area.size.x;
-	msg.arg.layer.h = area.size.y;
-	return msg;
-}

@@ -58,8 +58,6 @@ private:
 };
 
 extern LayerManager *layer_manager;
-// layer_id -> task_id
-extern std::map<unsigned int, uint64_t> *layer_task_map;
 
 class ActiveLayer
 {
@@ -76,6 +74,20 @@ private:
 };
 
 extern ActiveLayer *active_layer;
+// layer_id -> task_id
+extern std::map<unsigned int, uint64_t> *layer_task_map;
 
 void InitializeLayer();
 void ProcessLayerMessage(const Message &msg);
+
+constexpr Message MakeLayerMessage(uint64_t task_id, unsigned int layer_id, LayerOperation op, const Rectangle<int> &area)
+{
+	Message msg{Message::kLayer, task_id};
+	msg.arg.layer.layer_id = layer_id;
+	msg.arg.layer.op = op;
+	msg.arg.layer.x = area.pos.x;
+	msg.arg.layer.y = area.pos.y;
+	msg.arg.layer.w = area.size.x;
+	msg.arg.layer.h = area.size.y;
+	return msg;
+}
