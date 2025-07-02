@@ -9,6 +9,7 @@
 #include "logger.hpp"
 #include "font.hpp"
 #include "layer.hpp"
+#include "pci.hpp"
 
 Terminal::Terminal()
 {
@@ -26,6 +27,7 @@ Terminal::Terminal()
 					.ID();
 
 	Print(">");
+	cmd_history_.resize(8);
 }
 
 Rectangle<int> Terminal::BlinkCursor()
@@ -58,6 +60,15 @@ Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
 	{
 		// 終端文字？
 		linebuf_[linebuf_index_] = 0;
+
+		if (linebuf_index_ > 0)
+		{
+			cmd_history_.pop_back();
+			cmd_history_.push_front(linebuf_);
+		}
+		linebuf_index_ = 0;
+		cmd_history_index_ = -1;
+
 		// 左に戻す
 		linebuf_index_ = 0;
 		cursor_.x = 0;
@@ -88,6 +99,14 @@ Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
 				--linebuf_index_;
 			}
 		}
+	}
+	else if (keycode == 0x51)
+	{
+		draw_area = HistoryUpDown(-1);
+	}
+	else if (keycode == 0x52)
+	{
+		draw_area = HistoryUpDown(1);
 	}
 	else if (ascii != 0)
 	{
@@ -140,6 +159,17 @@ void Terminal::ExecuteLine()
 		FillRectangle(*window_->InnerWriter(), {4, 4}, {8 * kColumns, 16 * kRows}, {0, 0, 0});
 		cursor_.y = 0;
 	}
+	else if (strcmp(command, "lspci") == 0)
+	{
+		char s[64];
+		for (int i = 0; i < pci::num_device; ++i)
+		{
+			const auto &dev = pci::devices[i];
+			auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
+			sprintf(s, "%02x:%02x.%d vend=%04x head=%02x class=%02x.%02x.%02x\n", dev.bus, dev.device, dev.function, vendor_id, dev.header_type, dev.class_code.base, dev.class_code.sub, dev.class_code.interface);
+			Print(s);
+		}
+	}
 	else if (command[0] != 0)
 	{
 		Print("no such command: ");
@@ -188,6 +218,38 @@ void Terminal::Print(const char *s)
 	}
 
 	DrawCursor(true);
+}
+
+Rectangle<int> Terminal::HistoryUpDown(int direction)
+{
+	if (direction == -1 && cmd_history_index_ >= 0)
+	{
+		--cmd_history_index_;
+	}
+	else if (direction == 1 && cmd_history_index_ + 1 < cmd_history_.size())
+	{
+		++cmd_history_index_;
+	}
+
+	cursor_.x = 1;
+
+	const auto first_pos = CalcCursorPos();
+
+	Rectangle<int> draw_area{first_pos, {8 * (kColumns - 1), 16}};
+	FillRectangle(*window_->Writer(), draw_area.pos, draw_area.size, {0, 0, 0});
+
+	const char *history = "";
+	if (cmd_history_index_ >= 0)
+	{
+		history = &cmd_history_[cmd_history_index_][0];
+	}
+
+	strcpy(&linebuf_[0], history);
+	linebuf_index_ = strlen(history);
+
+	WriteString(*window_->Writer(), first_pos, history, {255, 255, 255});
+	cursor_.x = linebuf_index_ + 1;
+	return draw_area;
 }
 
 void TaskTerminal(uint64_t task_id, int64_t data)
