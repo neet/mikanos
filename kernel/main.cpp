@@ -28,6 +28,7 @@
 #include "keyboard.hpp"
 #include "task.hpp"
 #include "terminal.hpp"
+#include "fat.hpp"
 
 int printk(const char *format, ...)
 {
@@ -138,6 +139,7 @@ KernelMainNewStack(
   InitializeMemoryManager(memory_map);
   InitializeInterrupt();
 
+  fat::Initialize(volume_image);
   InitializePCI();
 
   InitializeLayer();
