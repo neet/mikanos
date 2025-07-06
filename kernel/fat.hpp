@@ -60,10 +60,17 @@ namespace fat
 		uint16_t write_date;
 		uint16_t first_cluster_low;
 		uint32_t file_size;
+
+		uint32_t FirstCluster() const
+		{
+			return first_cluster_low | (static_cast<uint32_t>(first_cluster_high) << 16);
+		}
 	} __attribute__((packed));
 
 	extern BPB *boot_volume_image;
 	void Initialize(void *volume_image);
+
+	extern unsigned long bytes_per_cluster;
 
 	uintptr_t GetClusterAddr(unsigned long cluster);
 
@@ -73,6 +80,10 @@ namespace fat
 		return reinterpret_cast<T *>(GetClusterAddr(cluster));
 	}
 
-	void ReadName(const DirectoryEntry &entry, char *base, char *ext);
+	static const uint32_t kEndOfClusterchain = 0x0ffffffflu;
 
+	void ReadName(const DirectoryEntry &entry, char *base, char *ext);
+	unsigned long NextCluster(unsigned long cluster);
+	DirectoryEntry *FindFile(const char *name, unsigned long directory_cluster = 0);
+	bool NameIsEqual(const DirectoryEntry &entry, const char *name);
 }

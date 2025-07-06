@@ -31,6 +31,7 @@ private:
 	std::array<char, kLineMax> linebuf_{};
 	void Scroll1();
 	void ExecuteLine();
+	void Print(char c);
 	void Print(const char *s);
 
 	std::deque<std::array<char, kLineMax>> cmd_history_{};
