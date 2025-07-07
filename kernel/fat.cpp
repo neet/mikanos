@@ -1,7 +1,7 @@
 #include "fat.hpp"
 
 #include <cstring>
-#include <locale>
+#include <cctype>
 
 namespace fat
 {

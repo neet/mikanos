@@ -34,3 +34,9 @@
 # 追加
 kernel.elf
 kernel/hankaku.bin
+
+apps/onlyhlt/onlyhlt
+apps/rpn/rpn
+
+disk.img
+mnt

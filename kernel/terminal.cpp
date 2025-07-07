@@ -10,7 +10,47 @@
 #include "font.hpp"
 #include "layer.hpp"
 #include "pci.hpp"
-#include "fat.hpp"
+#include "elf.hpp"
+
+namespace
+{
+	std::vector<char *> MakeArgVector(char *command, char *first_arg)
+	{
+		std::vector<char *> argv;
+		argv.push_back(command);
+		if (!first_arg)
+		{
+			return argv;
+		}
+
+		char *p = first_arg;
+		while (true)
+		{
+			while (isspace(p[0]))
+			{
+				++p;
+			}
+			if (p[0] == 0)
+			{
+				break;
+			}
+			argv.push_back(p);
+
+			while (p[0] != 0 && !isspace(p[0]))
+			{
+				++p;
+			}
+			if (p[0] == 0)
+			{
+				break;
+			}
+			p[0] = 0;
+			++p;
+		}
+
+		return argv;
+	}
+}
 
 Terminal::Terminal()
 {
@@ -67,11 +107,10 @@ Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
 			cmd_history_.pop_back();
 			cmd_history_.push_front(linebuf_);
 		}
+		// 左に戻す
 		linebuf_index_ = 0;
 		cmd_history_index_ = -1;
 
-		// 左に戻す
-		linebuf_index_ = 0;
 		cursor_.x = 0;
 		if (cursor_.y < kRows - 1)
 		{
@@ -101,14 +140,6 @@ Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
 			}
 		}
 	}
-	else if (keycode == 0x51)
-	{
-		draw_area = HistoryUpDown(-1);
-	}
-	else if (keycode == 0x52)
-	{
-		draw_area = HistoryUpDown(1);
-	}
 	else if (ascii != 0)
 	{
 		if (cursor_.x < kColumns - 1 && linebuf_index_ < kLineMax - 1)
@@ -118,6 +149,14 @@ Rectangle<int> Terminal::InputKey(uint8_t modifier, uint8_t keycode, char ascii)
 			WriteAscii(*window_->Writer(), CalcCursorPos(), ascii, {255, 255, 255});
 			++cursor_.x;
 		}
+	}
+	else if (keycode == 0x51)
+	{
+		draw_area = HistoryUpDown(-1);
+	}
+	else if (keycode == 0x52)
+	{
+		draw_area = HistoryUpDown(1);
 	}
 
 	DrawCursor(true);
@@ -175,8 +214,7 @@ void Terminal::ExecuteLine()
 	{
 		auto root_dir_entries = fat::GetSectorByCluster<fat::DirectoryEntry>(
 			fat::boot_volume_image->root_cluster);
-		auto entries_per_cluster =
-			fat::boot_volume_image->bytes_per_sector / sizeof(fat::DirectoryEntry) * fat::boot_volume_image->sectors_per_cluster;
+		auto entries_per_cluster = fat::bytes_per_cluster / sizeof(fat::DirectoryEntry);
 
 		char base[9], ext[4];
 		char s[64];
@@ -216,6 +254,7 @@ void Terminal::ExecuteLine()
 		if (!file_entry)
 		{
 			sprintf(s, "no such file:%s\n", first_arg);
+			Print(s);
 		}
 		else
 		{
@@ -242,10 +281,60 @@ void Terminal::ExecuteLine()
 	}
 	else if (command[0] != 0)
 	{
-		Print("no such command: ");
-		Print(command);
-		Print("\n");
+		auto file_entry = fat::FindFile(command);
+		if (!file_entry)
+		{
+			Print("no such command: ");
+			Print(command);
+			Print("\n");
+		}
+		else
+		{
+			ExecuteFile(*file_entry, command, first_arg);
+		}
 	}
+}
+
+void Terminal::ExecuteFile(const fat::DirectoryEntry &file_entry, char *command, char *first_arg)
+{
+	auto cluster = file_entry.FirstCluster();
+	auto remain_bytes = file_entry.file_size;
+
+	std::vector<uint8_t> file_buf(remain_bytes);
+	auto p = &file_buf[0];
+
+	while (cluster != 0 && cluster != fat::kEndOfClusterchain)
+	{
+		const auto copy_bytes = fat::bytes_per_cluster < remain_bytes ? fat::bytes_per_cluster : remain_bytes;
+		memcpy(p, fat::GetSectorByCluster<uint8_t>(cluster), copy_bytes);
+
+		remain_bytes -= copy_bytes;
+		p += copy_bytes;
+		cluster = fat::NextCluster(cluster);
+	}
+
+	auto elf_header = reinterpret_cast<Elf64_Ehdr *>(&file_buf[0]);
+	if (memcmp(elf_header->e_ident, "\x7f"
+									"ELF",
+			   4) != 0)
+	{
+		using Func = void();
+		auto f = reinterpret_cast<Func *>(&file_buf[0]);
+		f();
+		return;
+	}
+
+	auto argv = MakeArgVector(command, first_arg);
+
+	auto entry_addr = elf_header->e_entry;
+	entry_addr += reinterpret_cast<uintptr_t>(&file_buf[0]);
+	using Func = int(int, char **);
+	auto f = reinterpret_cast<Func *>(entry_addr);
+	auto ret = f(argv.size(), &argv[0]);
+
+	char s[64];
+	sprintf(s, "app exited. ret = %d\n", ret);
+	Print(s);
 }
 
 void Terminal::Print(char c)
@@ -346,6 +435,7 @@ void TaskTerminal(uint64_t task_id, int64_t data)
 			__asm__("sti");
 			continue;
 		}
+		__asm__("sti");
 
 		switch (msg->type)
 		{
