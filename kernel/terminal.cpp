@@ -13,6 +13,7 @@
 #include "pci.hpp"
 #include "elf.hpp"
 #include "paging.hpp"
+#include "memory_manager.hpp"
 
 namespace
 {
@@ -72,23 +73,18 @@ namespace
 	}
 }
 
-struct LinearAddress4Level
+WithError<PageMapEntry *> NewPageMap()
 {
-	uint64_t value;
-
-	uint16_t Part(int level)
+	auto frame = memory_manager->Allocate(1);
+	if (frame.error)
 	{
-		auto shift = 12 + (level - 1) * 9;
-		return value >> shift & 0x1FF;
-	};
+		return {nullptr, frame.error};
+	}
 
-	void SetPart(int level, uint16_t part)
-	{
-		auto shift = 12 + (level - 1) * 9;
-		value &= ~(0x1FFull << shift);
-		value |= (static_cast<uint64_t>(part & 0x1FF) << shift);
-	};
-};
+	auto e = reinterpret_cast<PageMapEntry *>(frame.value.Frame());
+	memset(e, 0, sizeof(uint64_t) * 512);
+	return {e, MAKE_ERROR(Error::kSuccess)};
+}
 
 WithError<PageMapEntry *> SetNewPageMapIfNotPresent(PageMapEntry &entry)
 {
@@ -201,6 +197,51 @@ Error LoadELF(Elf64_Ehdr *ehdr)
 	}
 
 	return MAKE_ERROR(Error::kSuccess);
+};
+
+Error CleanPageMap(PageMapEntry *page_map, int page_map_level)
+{
+	for (int i = 0; i < 512; ++i)
+	{
+		auto entry = page_map[i];
+		if (!entry.bits.present)
+		{
+			continue;
+		}
+
+		if (page_map_level > 1)
+		{
+			if (auto err = CleanPageMap(entry.Pointer(), page_map_level - 1))
+			{
+				return err;
+			}
+		}
+
+		const auto entry_addr = reinterpret_cast<uintptr_t>(entry.Pointer());
+		const FrameID map_frame{entry_addr / kBytesPerFrame};
+		if (auto err = memory_manager->Free(map_frame, 1))
+		{
+			return err;
+		}
+		page_map[i].data = 0;
+	}
+
+	return MAKE_ERROR(Error::kSuccess);
+};
+
+Error CleanPageMaps(LinearAddress4Level addr)
+{
+	auto pml4_table = reinterpret_cast<PageMapEntry *>(GetCR3());
+	auto pdp_table = pml4_table[addr.parts.pml4].Pointer();
+	pml4_table[addr.parts.pml4].data = 0;
+	if (auto err = CleanPageMap(pdp_table, 3))
+	{
+		return err;
+	}
+
+	const auto pdp_addr = reinterpret_cast<uintptr_t>(pdp_table);
+	const FrameID pdp_frame{pdp_addr / kBytesPerFrame};
+	return memory_manager->Free(pdp_frame, 1);
 };
 
 Terminal::Terminal()
@@ -446,23 +487,10 @@ void Terminal::ExecuteLine()
 	}
 }
 
-void Terminal::ExecuteFile(const fat::DirectoryEntry &file_entry, char *command, char *first_arg)
+Error Terminal::ExecuteFile(const fat::DirectoryEntry &file_entry, char *command, char *first_arg)
 {
-	auto cluster = file_entry.FirstCluster();
-	auto remain_bytes = file_entry.file_size;
-
-	std::vector<uint8_t> file_buf(remain_bytes);
-	auto p = &file_buf[0];
-
-	while (cluster != 0 && cluster != fat::kEndOfClusterchain)
-	{
-		const auto copy_bytes = fat::bytes_per_cluster < remain_bytes ? fat::bytes_per_cluster : remain_bytes;
-		memcpy(p, fat::GetSectorByCluster<uint8_t>(cluster), copy_bytes);
-
-		remain_bytes -= copy_bytes;
-		p += copy_bytes;
-		cluster = fat::NextCluster(cluster);
-	}
+	std::vector<uint8_t> file_buf(file_entry.file_size);
+	fat::LoadFile(&file_buf[0], file_buf.size(), file_entry);
 
 	auto elf_header = reinterpret_cast<Elf64_Ehdr *>(&file_buf[0]);
 	if (memcmp(elf_header->e_ident, "\x7f"
@@ -472,13 +500,16 @@ void Terminal::ExecuteFile(const fat::DirectoryEntry &file_entry, char *command,
 		using Func = void();
 		auto f = reinterpret_cast<Func *>(&file_buf[0]);
 		f();
-		return;
+		return MAKE_ERROR(Error::kSuccess);
 	}
 
 	auto argv = MakeArgVector(command, first_arg);
+	if (auto err = LoadELF(elf_header))
+	{
+		return err;
+	}
 
 	auto entry_addr = elf_header->e_entry;
-	entry_addr += reinterpret_cast<uintptr_t>(&file_buf[0]);
 	using Func = int(int, char **);
 	auto f = reinterpret_cast<Func *>(entry_addr);
 	auto ret = f(argv.size(), &argv[0]);
@@ -486,6 +517,14 @@ void Terminal::ExecuteFile(const fat::DirectoryEntry &file_entry, char *command,
 	char s[64];
 	sprintf(s, "app exited. ret = %d\n", ret);
 	Print(s);
+
+	const auto addr_first = GetFirstLoadAddress(elf_header);
+	if (auto err = CleanPageMaps(LinearAddress4Level{addr_first}))
+	{
+		return err;
+	}
+
+	return MAKE_ERROR(Error::kSuccess);
 }
 
 void Terminal::Print(char c)

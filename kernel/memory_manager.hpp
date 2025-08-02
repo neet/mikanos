@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "error.hpp"
+#include "memory_map.hpp"
 
 namespace
 {
@@ -66,4 +67,5 @@ private:
 	void SetBit(FrameID frame, bool allocated);
 };
 
+extern BitmapMemoryManager *memory_manager;
 void InitializeMemoryManager(const MemoryMap &memory_map);
