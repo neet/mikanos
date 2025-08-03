@@ -6,7 +6,7 @@
 
 namespace
 {
-	std::array<SegmentDescriptor, 3> gdt;
+	std::array<SegmentDescriptor, 5> gdt;
 }
 
 void SetCodeSegment(SegmentDescriptor &desc, DescriptorType type, unsigned int descriptor_privilege_level, uint32_t base, uint32_t limit)

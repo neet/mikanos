@@ -74,7 +74,7 @@ union PageMapEntry
 		uint64_t writable : 1;
 		uint64_t user : 1;
 		uint64_t write_through : 1;
-		uint64_t chache_disable : 1;
+		uint64_t cache_disable : 1;
 		uint64_t accessed : 1;
 		uint64_t dirty : 1;
 		uint64_t huge_page : 1;
