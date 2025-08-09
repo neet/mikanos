@@ -68,8 +68,8 @@ public:
 
 	TaskManager();
 	Task &NewTask();
-	// current_sleep = 実行中のタスクをスリープさせてから次へ移る
-	void SwitchTask(bool current_sleep = false);
+	void SwitchTask(const TaskContext &current_ctx);
+	Task *RotateCurrentRunQueue(bool current_sleep);
 
 	void Sleep(Task *task);
 	Error Sleep(uint64_t id);
@@ -88,6 +88,7 @@ private:
 	bool level_changed_{false};
 
 	void ChangeLevelRunning(Task *task, int level);
+	Task *RotateCurrentRunQueue(bool current_sleep);
 };
 
 extern TaskManager *task_manager;
