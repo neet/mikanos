@@ -83,6 +83,8 @@ void InitializeTSS()
 	tss[1] = rsp0 & 0xffffffff;
 	tss[2] = rsp0 >> 32;
 
+	Log(kWarn, "TTS.RSP0=0x%016x\n", rsp0);
+
 	uint64_t tss_addr = reinterpret_cast<uint64_t>(&tss[0]);
 	SetSystemSegment(gdt[kTSS >> 3], DescriptorType::kTSSAvailable, 0, tss_addr & 0xffffffff, sizeof(tss) - 1);
 	gdt[(kTSS >> 3) + 1].data = tss_addr >> 32;
