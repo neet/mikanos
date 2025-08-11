@@ -251,3 +251,12 @@ global LoadTR
 LoadTR:
     ltr di
     ret
+
+global WriteMSR
+WriteMSR:
+    mov rdx, rsi
+    shr rdx, 32
+    mov eax, esi
+    mov ecx, edi
+    wrmsr
+    ret
