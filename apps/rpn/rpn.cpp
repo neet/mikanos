@@ -3,7 +3,7 @@
 
 #include "../../kernel/graphics.hpp"
 
-// auto &printk = *reinterpret_cast<int (*)(const char *, ...)>(0x000000000010b000);
+auto &printk = *reinterpret_cast<int (*)(const char *, ...)>(0x000000000010b000);
 // auto &fill_rect = *reinterpret_cast<decltype(FillRectangle) *>(0x000000000010c320);
 // auto &scrn_writer = *reinterpret_cast<decltype(screen_writer) *>(0x000000000024e078);
 
@@ -54,6 +54,8 @@ extern "C" int main(int argc, char **argv)
 	{
 		return 0;
 	}
+
+	printk("%d", Pop());
 
 	while (1)
 	{
