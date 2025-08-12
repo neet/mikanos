@@ -8,7 +8,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include "logger.hpp"
 
 template <typename T>
 struct ArrayLength

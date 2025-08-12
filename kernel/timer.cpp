@@ -1,6 +1,7 @@
 #include "timer.hpp"
-#include "interrupt.hpp"
+
 #include "acpi.hpp"
+#include "interrupt.hpp"
 #include "task.hpp"
 
 namespace

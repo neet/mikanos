@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <deque>
 
-#include "message.hpp"
 #include "x86_descriptor.hpp"
+#include "message.hpp"
 
 union InterruptDescriptorAttribute
 {

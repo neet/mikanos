@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <array>
+
 #include "error.hpp"
 
 namespace pci

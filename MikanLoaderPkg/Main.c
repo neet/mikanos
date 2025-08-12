@@ -9,7 +9,6 @@
 #include <Protocol/DiskIo2.h>
 #include <Protocol/BlockIo.h>
 #include <Guid/FileInfo.h>
-#include <Guid/Acpi.h>
 #include "frame_buffer_config.hpp"
 #include "memory_map.hpp"
 #include "elf.hpp"

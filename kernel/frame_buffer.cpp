@@ -1,5 +1,4 @@
 #include "frame_buffer.hpp"
-#include "error.hpp"
 
 namespace
 {
@@ -49,7 +48,7 @@ Error FrameBuffer::Initialize(const FrameBufferConfig &config)
 	{
 		buffer_.resize(bytes_per_pixel * config_.horizontal_resolution * config_.vertical_resolution);
 		config_.frame_buffer = buffer_.data();
-		config_.pixels_per_scan_line = config.horizontal_resolution;
+		config_.pixels_per_scan_line = config_.horizontal_resolution;
 	}
 
 	switch (config_.pixel_format)

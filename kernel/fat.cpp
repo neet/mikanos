@@ -1,5 +1,6 @@
 #include "fat.hpp"
 
+#include <cstring>
 #include <cctype>
 
 namespace fat
@@ -9,7 +10,7 @@ namespace fat
 
 	void Initialize(void *volume_image)
 	{
-		boot_volume_image = reinterpret_cast<BPB *>(volume_image);
+		boot_volume_image = reinterpret_cast<fat::BPB *>(volume_image);
 		bytes_per_cluster =
 			static_cast<unsigned long>(boot_volume_image->bytes_per_sector) *
 			boot_volume_image->sectors_per_cluster;

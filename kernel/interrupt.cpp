@@ -79,24 +79,24 @@ namespace
 			__asm__("hlt");                                                       \
 	}
 
-	FaultHandlerNoError(DE);
-	FaultHandlerNoError(DB);
-	FaultHandlerNoError(BP);
-	FaultHandlerNoError(OF);
-	FaultHandlerNoError(BR);
-	FaultHandlerNoError(UD);
-	FaultHandlerNoError(NM);
-	FaultHandlerWithError(DF);
-	FaultHandlerWithError(TS);
-	FaultHandlerWithError(NP);
-	FaultHandlerWithError(SS);
-	FaultHandlerWithError(GP);
-	FaultHandlerWithError(PF);
-	FaultHandlerNoError(MF);
-	FaultHandlerWithError(AC);
-	FaultHandlerNoError(MC);
-	FaultHandlerNoError(XM);
-	FaultHandlerNoError(VE);
+	FaultHandlerNoError(DE)
+	FaultHandlerNoError(DB)
+	FaultHandlerNoError(BP)
+	FaultHandlerNoError(OF)
+	FaultHandlerNoError(BR)
+	FaultHandlerNoError(UD)
+	FaultHandlerNoError(NM)
+	FaultHandlerWithError(DF)
+	FaultHandlerWithError(TS)
+	FaultHandlerWithError(NP)
+	FaultHandlerWithError(SS)
+	FaultHandlerWithError(GP)
+	FaultHandlerWithError(PF)
+	FaultHandlerNoError(MF)
+	FaultHandlerWithError(AC)
+	FaultHandlerNoError(MC)
+	FaultHandlerNoError(XM)
+	FaultHandlerNoError(VE)
 }
 
 void InitializeInterrupt()

@@ -8,7 +8,7 @@ std::new_handler std::get_new_handler() noexcept
 	return []
 	{
 		printk("not enough memory\n");
-		// exit(1);
+		exit(1);
 	};
 }
 

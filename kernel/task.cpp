@@ -1,9 +1,8 @@
 #include "task.hpp"
 
 #include "asmfunc.h"
-#include "error.hpp"
-#include "timer.hpp"
 #include "segment.hpp"
+#include "timer.hpp"
 
 namespace
 {

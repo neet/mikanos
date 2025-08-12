@@ -1,7 +1,8 @@
+#include "paging.hpp"
+
 #include <array>
 
 #include "asmfunc.h"
-#include "paging.hpp"
 
 namespace
 {

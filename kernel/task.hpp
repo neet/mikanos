@@ -1,12 +1,14 @@
+#pragma once
+
 #include <array>
 #include <cstddef>
-#include <vector>
 #include <cstdint>
 #include <deque>
 #include <optional>
+#include <vector>
 
-#include "message.hpp"
 #include "error.hpp"
+#include "message.hpp"
 
 struct TaskContext
 {
@@ -69,7 +71,6 @@ public:
 	TaskManager();
 	Task &NewTask();
 	void SwitchTask(const TaskContext &current_ctx);
-	Task *RotateCurrentRunQueue(bool current_sleep);
 
 	void Sleep(Task *task);
 	Error Sleep(uint64_t id);
@@ -88,6 +89,7 @@ private:
 	bool level_changed_{false};
 
 	void ChangeLevelRunning(Task *task, int level);
+	Task *RotateCurrentRunQueue(bool current_sleep);
 };
 
 extern TaskManager *task_manager;

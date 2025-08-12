@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "graphics.hpp"
 
 const int kMouseCursorWidth = 15;

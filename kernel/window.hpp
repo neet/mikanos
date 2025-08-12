@@ -3,7 +3,6 @@
 #include <vector>
 #include <optional>
 #include <string>
-
 #include "graphics.hpp"
 #include "frame_buffer.hpp"
 

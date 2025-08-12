@@ -1,9 +1,8 @@
-#include <deque>
-
 #include "keyboard.hpp"
-#include "message.hpp"
-#include "task.hpp"
+
+#include <memory>
 #include "usb/classdriver/keyboard.hpp"
+#include "task.hpp"
 
 const char keycode_map[256] = {
 	0, 0, 0, 0, 'a', 'b', 'c', 'd',				// 0

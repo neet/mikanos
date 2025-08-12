@@ -1,6 +1,6 @@
-#include <memory.h>
-
 #include "console.hpp"
+
+#include <cstring>
 #include "font.hpp"
 #include "layer.hpp"
 

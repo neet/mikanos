@@ -1,20 +1,15 @@
 #include "terminal.hpp"
 
-#include <map>
-#include <cstdint>
 #include <cstring>
+#include <limits>
 
-#include "asmfunc.h"
-#include "layer.hpp"
-#include "task.hpp"
-#include "window.hpp"
-#include "logger.hpp"
 #include "font.hpp"
 #include "layer.hpp"
 #include "pci.hpp"
+#include "asmfunc.h"
 #include "elf.hpp"
-#include "paging.hpp"
 #include "memory_manager.hpp"
+#include "paging.hpp"
 
 namespace
 {
@@ -509,9 +504,11 @@ void Terminal::ExecuteLine()
 			Print(command);
 			Print("\n");
 		}
-		else
+		else if (auto err = ExecuteFile(*file_entry, command, first_arg))
 		{
-			ExecuteFile(*file_entry, command, first_arg);
+			Print("failed to exec file: ");
+			Print(err.Name());
+			Print("\n");
 		}
 	}
 }
@@ -559,7 +556,7 @@ Error Terminal::ExecuteFile(const fat::DirectoryEntry &file_entry, char *command
 	}
 
 	auto entry_addr = elf_header->e_entry;
-	CallApp(argc.value, argv, 3 << 3 | 3, 4 << 3 | 3, entry_addr, stack_frame_addr.value + 4096 - 8);
+	CallApp(argc.value, argv, 4 << 3 | 3, 3 << 3 | 3, entry_addr, stack_frame_addr.value + 4096 - 8);
 
 	// char s[64];
 	// sprintf(s, "app exited. ret = %d\n", ret);

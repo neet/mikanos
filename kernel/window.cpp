@@ -1,4 +1,5 @@
 #include "window.hpp"
+
 #include "logger.hpp"
 #include "font.hpp"
 

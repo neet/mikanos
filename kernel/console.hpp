@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include "graphics.hpp"
 #include "window.hpp"
 

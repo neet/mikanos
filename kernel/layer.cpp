@@ -1,6 +1,6 @@
 #include "layer.hpp"
 
-#include "graphics.hpp"
+#include <algorithm>
 #include "console.hpp"
 #include "logger.hpp"
 

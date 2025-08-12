@@ -1,11 +1,10 @@
 #pragma once
 
-#include <memory>
 #include <deque>
-
+#include <map>
 #include "window.hpp"
-#include "graphics.hpp"
-#include "message.hpp"
+#include "task.hpp"
+#include "layer.hpp"
 #include "fat.hpp"
 
 class Terminal

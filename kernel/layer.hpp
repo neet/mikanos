@@ -2,9 +2,10 @@
 
 #include <memory>
 #include <map>
+#include <vector>
 
-#include "window.hpp"
 #include "graphics.hpp"
+#include "window.hpp"
 #include "message.hpp"
 
 class Layer

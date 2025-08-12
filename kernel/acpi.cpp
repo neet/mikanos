@@ -1,7 +1,8 @@
-#include <cstring>
-
-#include "asmfunc.h"
 #include "acpi.hpp"
+
+#include <cstring>
+#include <cstdlib>
+#include "asmfunc.h"
 #include "logger.hpp"
 
 namespace

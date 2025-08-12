@@ -260,3 +260,24 @@ WriteMSR:
     mov ecx, edi
     wrmsr
     ret
+
+extern syscall_table
+global SyscallEntry
+SyscallEntry:
+    push rbp
+    push rcx
+    push r11
+
+    mov rcx, r10
+    and eax, 0x7fffffff
+    mov rbp, rsp
+    and rsp, 0xfffffffffffffff0
+
+    call [syscall_table + 8 * eax]
+
+    mov rsp, rbp
+
+    pop r11
+    pop rcx
+    pop rbp
+    o64 sysret

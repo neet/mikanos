@@ -1,9 +1,6 @@
-#include <sys/types.h>
-
-#include "memory_map.hpp"
-#include "logger.hpp"
 #include "memory_manager.hpp"
-#include "error.hpp"
+
+#include "logger.hpp"
 
 BitmapMemoryManager::BitmapMemoryManager()
 	: alloc_map_{}, range_begin_{FrameID{0}}, range_end_{FrameID{kFrameCount}}
@@ -150,6 +147,6 @@ void InitializeMemoryManager(const MemoryMap &memory_map)
 	if (auto err = InitializeHeap(*memory_manager))
 	{
 		Log(kError, "failed to allocate pages: %s at %s:%d\n", err.Name(), err.File(), err.Line());
-		// exit(1);
+		exit(1);
 	}
 }

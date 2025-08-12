@@ -1,6 +1,8 @@
 #include "mouse.hpp"
-#include "logger.hpp"
-#include "window.hpp"
+
+#include <limits>
+#include <memory>
+#include "graphics.hpp"
 #include "layer.hpp"
 #include "usb/classdriver/mouse.hpp"
 
