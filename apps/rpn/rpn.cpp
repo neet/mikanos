@@ -1,6 +1,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdint>
+#include <cstdio>
 
 #include "../../kernel/logger.hpp"
 
@@ -33,32 +34,27 @@ extern "C" int main(int argc, char **argv)
 			long b = Pop();
 			long a = Pop();
 			Push(a + b);
-			SyscallLogString(kWarn, "+");
 		}
 		else if (strcmp(argv[i], "-") == 0)
 		{
 			long b = Pop();
 			long a = Pop();
 			Push(a - b);
-			SyscallLogString(kWarn, "-");
 		}
 		else
 		{
 			long a = atol(argv[i]);
 			Push(a);
-			SyscallLogString(kWarn, "#");
 		}
 	}
 
-	// fill_rect(*scrn_writer, Vector2D<int>{100, 10}, Vector2D<int>{200, 200}, ToColor(0x00ff00));
-
-	if (stack_ptr < 0)
+	long result = 0;
+	if (stack_ptr >= 0)
 	{
-		return 0;
+		result = Pop();
 	}
 
-	// printk("%d", Pop());
-	SyscallLogString(kWarn, "\nhello, this is rpn\n");
+	printf("%ld\n", result);
 	while (1)
 	{
 	};
