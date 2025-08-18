@@ -79,24 +79,24 @@ namespace
 			__asm__("hlt");                                                       \
 	}
 
-	FaultHandlerNoError(DE)
-	FaultHandlerNoError(DB)
-	FaultHandlerNoError(BP)
-	FaultHandlerNoError(OF)
-	FaultHandlerNoError(BR)
-	FaultHandlerNoError(UD)
-	FaultHandlerNoError(NM)
-	FaultHandlerWithError(DF)
-	FaultHandlerWithError(TS)
-	FaultHandlerWithError(NP)
-	FaultHandlerWithError(SS)
-	FaultHandlerWithError(GP)
-	FaultHandlerWithError(PF)
-	FaultHandlerNoError(MF)
-	FaultHandlerWithError(AC)
-	FaultHandlerNoError(MC)
-	FaultHandlerNoError(XM)
-	FaultHandlerNoError(VE)
+	FaultHandlerNoError(DE);
+	FaultHandlerNoError(DB);
+	FaultHandlerNoError(BP);
+	FaultHandlerNoError(OF);
+	FaultHandlerNoError(BR);
+	FaultHandlerNoError(UD);
+	FaultHandlerNoError(NM);
+	FaultHandlerWithError(DF);
+	FaultHandlerWithError(TS);
+	FaultHandlerWithError(NP);
+	FaultHandlerWithError(SS);
+	FaultHandlerWithError(GP);
+	FaultHandlerWithError(PF);
+	FaultHandlerNoError(MF);
+	FaultHandlerWithError(AC);
+	FaultHandlerNoError(MC);
+	FaultHandlerNoError(XM);
+	FaultHandlerNoError(VE);
 }
 
 void InitializeInterrupt()
@@ -106,7 +106,7 @@ void InitializeInterrupt()
 		SetIDTEntry(idt[irq], MakeIDTAttr(DescriptorType::kInterruptGate, 0), reinterpret_cast<uint64_t>(handler), kKernelCS);
 	};
 	set_idt_entry(InterruptVector::kXHCI, IntHandlerXHCI);
-	set_idt_entry(InterruptVector::kLAPICTimer, IntHandlerLAPICTimer);
+	SetIDTEntry(idt[InterruptVector::kLAPICTimer], MakeIDTAttr(DescriptorType::kInterruptGate, 0, true, kISTForTimer), reinterpret_cast<uint64_t>(IntHandlerLAPICTimer), kKernelCS);
 	set_idt_entry(0, IntHandlerDE);
 	set_idt_entry(1, IntHandlerDB);
 	set_idt_entry(3, IntHandlerBP);
