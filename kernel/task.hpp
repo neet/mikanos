@@ -33,6 +33,7 @@ public:
 	uint64_t ID() const;
 	Task &Sleep();
 	Task &Wakeup();
+	uint64_t &OSStackPointer();
 
 	void SendMessage(const Message &msg);
 	std::optional<Message> ReceiveMessage();
@@ -45,6 +46,7 @@ private:
 	std::vector<uint64_t> stack_;
 	alignas(16) TaskContext context_;
 	std::deque<Message> msgs_;
+	uint64_t os_stack_ptr_;
 	unsigned int level_{kDefaultLevel};
 	bool running_{false};
 

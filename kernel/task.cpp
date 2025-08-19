@@ -70,6 +70,11 @@ Task &Task::Wakeup()
 	return *this;
 }
 
+uint64_t &Task::OSStackPointer()
+{
+	return os_stack_ptr_;
+}
+
 void Task::SendMessage(const Message &msg)
 {
 	msgs_.push_back(msg);

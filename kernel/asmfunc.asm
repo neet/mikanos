@@ -172,13 +172,20 @@ RestoreContext:
     o64 iret
 
 global CallApp
-CallApp:  ; void CallApp(int argc, char** argv, uint16_t cs, uint16_t ss, uint64_t rip, uint64_t rsp);
+CallApp:  ; int CallApp(int argc, char** argv, uint16_t cs, uint16_t ss, uint64_t rip, uint64_t rsp, uint64_t* os_stack_ptr);
+    push rbx
     push rbp
-    mov rbp, rsp
-    push rcx  ; SS
-    push r9   ; RSP
-    push rdx  ; CS
-    push r8   ; RIP
+    push r12
+    push r13
+    push r14
+    push r15
+    mov [r9], rsp
+    
+    push rdx
+    push r8
+    add rdx, 8
+    push rdx
+    push rcx
     o64 retf
 
 extern LAPICTimerOnInterrupt
@@ -267,6 +274,7 @@ SyscallEntry:
     push rbp
     push rcx
     push r11
+    push rax
 
     mov rcx, r10
     and eax, 0x7fffffff
@@ -277,7 +285,23 @@ SyscallEntry:
 
     mov rsp, rbp
 
+    pop rsi
+    cmp esi, 0x80000002
+    je .exit
+
     pop r11
     pop rcx
     pop rbp
     o64 sysret
+.exit:
+    mov rsp, rax
+    mov eax, edx
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbp
+    pop rbx
+
+    ret

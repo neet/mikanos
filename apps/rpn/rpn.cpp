@@ -22,8 +22,9 @@ void Push(long value)
 }
 
 extern "C" int64_t SyscallLogString(LogLevel, const char *);
+extern "C" int64_t SyscallExit(int);
 
-extern "C" int main(int argc, char **argv)
+extern "C" void main(int argc, char **argv)
 {
 	stack_ptr = -1;
 
@@ -55,7 +56,5 @@ extern "C" int main(int argc, char **argv)
 	}
 
 	printf("%ld\n", result);
-	while (1)
-	{
-	};
+	SyscallExit(static_cast<int>(result));
 }

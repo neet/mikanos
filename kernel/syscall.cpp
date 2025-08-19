@@ -25,15 +25,16 @@ namespace syscall
 	{
 		if (arg1 != kError && arg1 != kWarn && arg1 != kInfo && arg1 != kDebug)
 		{
-			// return -1;
+			return {0, EPERM};
 		}
 		const char *s = reinterpret_cast<const char *>(arg2);
-		if (strlen(s) > 1024)
+		const auto len = strlen(s);
+		if (len > 1024)
 		{
-			// return -1;
+			return {0, E2BIG};
 		}
 		Log(static_cast<LogLevel>(arg1), "%s", s);
-		// return 0;
+		return {len, 0};
 	}
 
 	SYSCALL(PutString)
@@ -54,6 +55,14 @@ namespace syscall
 		}
 
 		return {0, EBADF};
+	}
+
+	SYSCALL(Exit)
+	{
+		__asm__("cli");
+		auto &task = task_manager->CurrentTask();
+		__asm__("sti");
+		return {task.OSStackPointer(), static_cast<int>(arg1)};
 	}
 
 #undef SYSCALL
