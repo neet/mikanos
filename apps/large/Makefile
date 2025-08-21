@@ -1,5 +1,5 @@
-TARGET = rpn
-OBJS = rpn.o
+TARGET = large 
+OBJS = large.o
 include ../Makefile.elfapp
 
 %.o: %.c Makefile

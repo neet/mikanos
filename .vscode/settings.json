@@ -84,7 +84,8 @@
 		"io_context": "cpp",
 		"netfwd": "cpp",
 		"timer": "cpp",
-		"future": "cpp"
+		"future": "cpp",
+		"filesystem": "cpp"
 	},
 	"files.exclude": {
 		"**/*.o": true,

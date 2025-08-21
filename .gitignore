@@ -37,6 +37,7 @@ kernel/hankaku.bin
 
 apps/onlyhlt/onlyhlt
 apps/rpn/rpn
+apps/large/large
 
 disk.img
 mnt

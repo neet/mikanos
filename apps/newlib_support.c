@@ -44,7 +44,6 @@ struct SyscallResult
 	uint64_t value;
 	int error;
 };
-
 struct SyscallResult SyscallPutString(uint64_t, uint64_t, uint64_t);
 
 ssize_t write(int fd, const void *buf, size_t count)
