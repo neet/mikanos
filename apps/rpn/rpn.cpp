@@ -22,7 +22,7 @@ void Push(long value)
 }
 
 extern "C" int64_t SyscallLogString(LogLevel, const char *);
-extern "C" int64_t SyscallExit(int);
+extern "C" void SyscallExit(int);
 
 extern "C" void main(int argc, char **argv)
 {
