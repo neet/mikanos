@@ -38,6 +38,8 @@ kernel/hankaku.bin
 apps/onlyhlt/onlyhlt
 apps/rpn/rpn
 apps/large/large
+apps/winhello/winhello
+apps/stars/stars
 
 disk.img
 mnt
