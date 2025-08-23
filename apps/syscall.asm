@@ -49,3 +49,10 @@ SyscallGetCurrentTick:
 	mov r10, rcx
 	syscall
 	ret
+
+global SyscallWinRedraw 
+SyscallWinRedraw:
+	mov eax, 0x80000007
+	mov r10, rcx
+	syscall
+	ret

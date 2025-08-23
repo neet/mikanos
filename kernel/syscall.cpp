@@ -20,30 +20,6 @@ namespace syscall
 		int error;
 	};
 
-	template <class Func, class... Args>
-	Result DoWinFunc(Func f, unsigned int layer_id, Args... args)
-	{
-		__asm__("cli");
-		auto layer = layer_manager->FindLayer(layer_id);
-		__asm__("sti");
-		if (layer == nullptr)
-		{
-			return {0, EBADF};
-		}
-
-		const auto res = f(*layer->GetWindow(), args...);
-		if (res.error)
-		{
-			return res;
-		}
-
-		__asm__("cli");
-		layer_manager->Draw(layer_id);
-		__asm__("sti");
-
-		return res;
-	}
-
 #define SYSCALL(name) \
 	Result name(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6)
 
@@ -110,6 +86,40 @@ namespace syscall
 		return {layer_id, 0};
 	}
 
+	namespace
+	{
+		template <class Func, class... Args>
+		Result DoWinFunc(Func f, uint64_t layer_id_flags, Args... args)
+		{
+			const uint32_t layer_flags = layer_id_flags >> 32;
+			const unsigned int layer_id = layer_id_flags & 0xffffffff;
+
+			__asm__("cli");
+			auto layer = layer_manager->FindLayer(layer_id);
+			__asm__("sti");
+			if (layer == nullptr)
+			{
+				return {0, EBADF};
+			}
+
+			const auto res = f(*layer->GetWindow(), args...);
+			if (res.error)
+			{
+				return res;
+			}
+
+			// 1つめのフラグが1: 再描画をスキップ
+			if ((layer_flags & 1) == 0)
+			{
+				__asm__("cli");
+				layer_manager->Draw(layer_id);
+				__asm__("sti");
+			}
+
+			return res;
+		}
+	}
+
 	SYSCALL(WinWriteString)
 	{
 		return DoWinFunc(
@@ -137,12 +147,21 @@ namespace syscall
 		return {timer_manager->CurrentTick(), kTimerFreq};
 	}
 
+	SYSCALL(WinRedraw)
+	{
+		return DoWinFunc(
+			[](Window &)
+			{
+				return Result{0, 0};
+			},
+			arg1);
+	}
 #undef SYSCALL
 }
 
 using SyscallFuncType = syscall::Result(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
-extern "C" std::array<SyscallFuncType *, 7> syscall_table{
+extern "C" std::array<SyscallFuncType *, 8> syscall_table{
 	/* 0x00 */ syscall::LogString,
 	/* 0x01 */ syscall::PutString,
 	/* 0x02 */ syscall::Exit,
@@ -150,6 +169,7 @@ extern "C" std::array<SyscallFuncType *, 7> syscall_table{
 	/* 0x04 */ syscall::WinWriteString,
 	/* 0x05 */ syscall::WinFillRectangle,
 	/* 0x06 */ syscall::GetCurrentTick,
+	/* 0x07 */ syscall::WinRedraw,
 };
 
 void InitializeSyscall()
