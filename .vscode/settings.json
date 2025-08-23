@@ -85,7 +85,8 @@
 		"netfwd": "cpp",
 		"timer": "cpp",
 		"future": "cpp",
-		"filesystem": "cpp"
+		"filesystem": "cpp",
+		"cerrno": "cpp"
 	},
 	"files.exclude": {
 		"**/*.o": true,

@@ -40,6 +40,7 @@ apps/rpn/rpn
 apps/large/large
 apps/winhello/winhello
 apps/stars/stars
+apps/lines/lines
 
 disk.img
 mnt
