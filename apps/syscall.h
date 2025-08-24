@@ -28,6 +28,8 @@ extern "C"
 	struct SyscallResult SyscallGetCurrentTick();
 	struct SyscallResult SyscallWinRedraw(uint64_t layer_id_flags);
 	struct SyscallResult SyscallWinDrawLine(uint32_t layer_id_flags, int x0, int y0, int x1, int y1, uint32_t color);
+	struct SyscallResult SyscallCloseWindow(uint32_t layer_id);
+	struct SyscallResult SyscallReadEvent(struct AppEvent *events, size_t len);
 
 #ifdef __cplusplus
 }

@@ -86,7 +86,13 @@
 		"timer": "cpp",
 		"future": "cpp",
 		"filesystem": "cpp",
-		"cerrno": "cpp"
+		"cerrno": "cpp",
+		"__tree": "cpp",
+		"codecvt": "cpp",
+		"fstream": "cpp",
+		"iomanip": "cpp",
+		"sstream": "cpp",
+		"stack": "cpp"
 	},
 	"files.exclude": {
 		"**/*.o": true,

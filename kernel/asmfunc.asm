@@ -268,17 +268,34 @@ WriteMSR:
     wrmsr
     ret
 
+extern GetCurrentTaskOSStackPointer
 extern syscall_table
 global SyscallEntry
 SyscallEntry:
     push rbp
     push rcx
     push r11
+
     push rax
 
     mov rcx, r10
     and eax, 0x7fffffff
     mov rbp, rsp
+
+    and rsp, 0xfffffffffffffff0
+    push rax
+    push rdx
+    cli    
+    call GetCurrentTaskOSStackPointer
+    sti
+    mov rdx, [rsp + 0]
+    mov [rax - 16], rdx
+    mov rdx, [rsp + 8]
+    mov [rax - 8], rdx
+
+    lea rsp, [rax - 16]
+    pop rdx
+    pop rax
     and rsp, 0xfffffffffffffff0
 
     call [syscall_table + 8 * eax]

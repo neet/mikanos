@@ -4,6 +4,11 @@
 #include "segment.hpp"
 #include "timer.hpp"
 
+__attribute__((no_caller_saved_registers)) extern "C" uint64_t GetCurrentTaskOSStackPointer()
+{
+	return task_manager->CurrentTask().OSStackPointer();
+}
+
 namespace
 {
 	template <class T, class U>
@@ -131,7 +136,6 @@ void TaskManager::Sleep(Task *task)
 		return;
 	}
 
-	// 必要ある？？
 	task->SetRunning(false);
 
 	if (task == running_[current_level_].front())
