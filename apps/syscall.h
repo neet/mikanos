@@ -10,6 +10,7 @@ extern "C"
 #endif
 
 #include "../kernel/logger.hpp"
+#include "../kernel/app_event.hpp"
 
 	struct SyscallResult
 	{

@@ -13,8 +13,7 @@
 #include "font.hpp"
 #include "timer.hpp"
 #include "keyboard.hpp"
-
-#include "../apps/app_event.hpp"
+#include "app_event.hpp"
 
 namespace syscall
 {
@@ -286,6 +285,15 @@ namespace syscall
 					app_events[i].type = AppEvent::kQuit;
 					++i;
 				}
+				break;
+			case Message::kMouseMove:
+				app_events[i].type = AppEvent::kMouseMove;
+				app_events[i].arg.mouse_move.x = msg->arg.mouse_move.x;
+				app_events[i].arg.mouse_move.y = msg->arg.mouse_move.y;
+				app_events[i].arg.mouse_move.dx = msg->arg.mouse_move.dx;
+				app_events[i].arg.mouse_move.dy = msg->arg.mouse_move.dy;
+				app_events[i].arg.mouse_move.buttons = msg->arg.mouse_move.buttons;
+				++i;
 				break;
 			default:
 				Log(kInfo, "uncaught event type: %u\n", msg->type);
