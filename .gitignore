@@ -42,6 +42,7 @@ apps/winhello/winhello
 apps/stars/stars
 apps/lines/lines
 apps/eye/eye
+apps/paint/paint
 
 disk.img
 mnt
