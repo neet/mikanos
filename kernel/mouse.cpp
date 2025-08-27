@@ -53,9 +53,9 @@ void SendMouseMessage(Vector2D<int> newpos, Vector2D<int> posdiff, uint8_t butto
 		return;
 	}
 
+	const auto relpos = newpos - layer->GetPosition();
 	if (posdiff.x != 0 || posdiff.y != 0)
 	{
-		const auto relpos = newpos - layer->GetPosition();
 		Message msg{Message::kMouseMove};
 		msg.arg.mouse_move.x = relpos.x;
 		msg.arg.mouse_move.y = relpos.y;
@@ -63,22 +63,22 @@ void SendMouseMessage(Vector2D<int> newpos, Vector2D<int> posdiff, uint8_t butto
 		msg.arg.mouse_move.dy = posdiff.y;
 		msg.arg.mouse_move.buttons = buttons;
 		task_manager->SendMessage(task_it->second, msg);
+	}
 
-		if (previous_buttons != buttons)
+	if (previous_buttons != buttons)
+	{
+		const auto diff = previous_buttons ^ buttons;
+
+		for (int i = 0; i < 8; ++i)
 		{
-			const auto diff = previous_buttons ^ buttons;
-
-			for (int i = 0; i < 8; ++i)
+			if ((diff >> i) & 1)
 			{
-				if ((diff >> i) & 1)
-				{
-					Message msg{Message::kMouseButton};
-					msg.arg.mouse_button.x = relpos.x;
-					msg.arg.mouse_button.y = relpos.y;
-					msg.arg.mouse_button.press = (buttons >> i) & 1;
-					msg.arg.mouse_button.button = i;
-					task_manager->SendMessage(task_it->second, msg);
-				}
+				Message msg{Message::kMouseButton};
+				msg.arg.mouse_button.x = relpos.x;
+				msg.arg.mouse_button.y = relpos.y;
+				msg.arg.mouse_button.press = (buttons >> i) & 1;
+				msg.arg.mouse_button.button = i;
+				task_manager->SendMessage(task_it->second, msg);
 			}
 		}
 	}
