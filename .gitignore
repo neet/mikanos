@@ -43,6 +43,8 @@ apps/stars/stars
 apps/lines/lines
 apps/eye/eye
 apps/paint/paint
+apps/cube/cube
+apps/blocks/blocks
 
 disk.img
 mnt
