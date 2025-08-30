@@ -10,6 +10,7 @@
 #include "elf.hpp"
 #include "memory_manager.hpp"
 #include "paging.hpp"
+#include "timer.hpp"
 
 std::map<uint64_t, Terminal *> *terminals;
 
@@ -692,6 +693,14 @@ void TaskTerminal(uint64_t task_id, int64_t data)
 	(*terminals)[task_id] = terminal;
 	__asm__("sti");
 
+	auto add_blink_timer = [task_id](unsigned long t)
+	{
+		timer_manager->AddTimer(Timer{t + static_cast<int>(kTimerFreq * 0.5), 1, task_id});
+	};
+	add_blink_timer(timer_manager->CurrentTick());
+
+	bool window_isactive = false;
+
 	while (true)
 	{
 		__asm__("cli");
@@ -708,11 +717,15 @@ void TaskTerminal(uint64_t task_id, int64_t data)
 		{
 		case Message::kTimerTimeout:
 		{
-			const auto area = terminal->BlinkCursor();
-			Message msg = MakeLayerMessage(task_id, terminal->LayerID(), LayerOperation::DrawArea, area);
-			__asm__("cli");
-			task_manager->SendMessage(1, msg);
-			__asm__("sti");
+			add_blink_timer(msg->arg.timer.timeout);
+			if (window_isactive)
+			{
+				const auto area = terminal->BlinkCursor();
+				Message msg = MakeLayerMessage(task_id, terminal->LayerID(), LayerOperation::DrawArea, area);
+				__asm__("cli");
+				task_manager->SendMessage(1, msg);
+				__asm__("sti");
+			}
 		}
 		break;
 		case Message::kKeyPush:
@@ -725,6 +738,11 @@ void TaskTerminal(uint64_t task_id, int64_t data)
 				task_manager->SendMessage(1, msg);
 				__asm__("sti");
 			}
+		}
+		break;
+		case Message::kWindowActive:
+		{
+			window_isactive = msg->arg.window_active.activate;
 		}
 		break;
 		default:
