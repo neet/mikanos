@@ -7,6 +7,8 @@ const size_t kPageDirectoryCount = 64;
 
 void SetupIdentityPageTable();
 
+void ResetCR3();
+
 void InitializePaging();
 
 union LinearAddress4Level
