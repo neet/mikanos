@@ -12,7 +12,7 @@
 #include "paging.hpp"
 #include "timer.hpp"
 
-std::map<uint64_t, Terminal *> *terminals;
+auto *terminals = new std::map<uint64_t, Terminal *>;
 
 namespace
 {
