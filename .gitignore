@@ -45,6 +45,7 @@ apps/eye/eye
 apps/paint/paint
 apps/cube/cube
 apps/blocks/blocks
+apps/fault/fault
 
 disk.img
 mnt
