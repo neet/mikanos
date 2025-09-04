@@ -84,9 +84,10 @@ namespace fat
 
 	static const unsigned long kEndOfClusterchain = 0x0ffffffflu;
 
+	void FormatName(const DirectoryEntry &entry, char *dest);
 	unsigned long NextCluster(unsigned long cluster);
 
-	DirectoryEntry *FindFile(const char *name, unsigned long directory_cluster = 0);
+	std::pair<DirectoryEntry *, bool> FindFile(const char *name, unsigned long directory_cluster = 0);
 
 	bool NameIsEqual(const DirectoryEntry &entry, const char *name);
 

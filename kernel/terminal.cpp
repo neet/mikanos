@@ -271,6 +271,67 @@ Error CleanPageMaps(LinearAddress4Level addr)
 	return memory_manager->Free(pdp_frame, 1);
 };
 
+WithError<PageMapEntry *> SetupPML4(Task &current_task)
+{
+	auto pml4 = NewPageMap();
+	if (pml4.error)
+	{
+		return pml4;
+	}
+
+	const auto current_pml4 = reinterpret_cast<PageMapEntry *>(GetCR3());
+	memcpy(pml4.value, current_pml4, 256 * sizeof(uint64_t));
+
+	const auto cr3 = reinterpret_cast<uint64_t>(pml4.value);
+	SetCR3(cr3);
+	current_task.Context().cr3 = cr3;
+	return pml4;
+}
+
+Error FreePML4(Task &current_task)
+{
+	const auto cr3 = current_task.Context().cr3;
+	current_task.Context().cr3 = 0;
+	ResetCR3();
+
+	const FrameID frame{cr3 / kBytesPerFrame};
+	return memory_manager->Free(frame, 1);
+}
+
+void ListAllEntries(Terminal *term, uint32_t dir_cluster)
+{
+	const auto kEntriesPerCluster =
+		fat::bytes_per_cluster / sizeof(fat::DirectoryEntry);
+
+	while (dir_cluster != fat::kEndOfClusterchain)
+	{
+		auto dir = fat::GetSectorByCluster<fat::DirectoryEntry>(dir_cluster);
+
+		for (int i = 0; i < kEntriesPerCluster; ++i)
+		{
+			if (dir[i].name[0] == 0x00)
+			{
+				return;
+			}
+			else if (static_cast<uint8_t>(dir[i].name[0]) == 0xe5)
+			{
+				continue;
+			}
+			else if (dir[i].attr == fat::Attribute::kLongName)
+			{
+				continue;
+			}
+
+			char name[13];
+			fat::FormatName(dir[i], name);
+			term->Print(name);
+			term->Print("\n");
+		}
+
+		dir_cluster = fat::NextCluster(dir_cluster);
+	}
+}
+
 Terminal::Terminal(uint64_t task_id, bool show_window) : task_id_{task_id}, show_window_{show_window}
 {
 	if (show_window)
@@ -451,49 +512,56 @@ void Terminal::ExecuteLine()
 	}
 	else if (strcmp(command, "ls") == 0)
 	{
-		auto root_dir_entries = fat::GetSectorByCluster<fat::DirectoryEntry>(
-			fat::boot_volume_image->root_cluster);
-		auto entries_per_cluster = fat::bytes_per_cluster / sizeof(fat::DirectoryEntry);
-
-		char base[9], ext[4];
-		char s[64];
-
-		for (int i = 0; i < entries_per_cluster; ++i)
+		if (first_arg[0] == '\0')
 		{
-			ReadName(root_dir_entries[i], base, ext);
-			if (base[0] == 0x00)
+			ListAllEntries(this, fat::boot_volume_image->root_cluster);
+		}
+		else
+		{
+			auto [dir, post_slash] = fat::FindFile(first_arg);
+			if (dir == nullptr)
 			{
-				break;
+				Print("No such file or directory");
+				Print(first_arg);
+				Print("\n");
 			}
-			else if (static_cast<uint8_t>(base[0]) == 0xe5)
+			else if (dir->attr == fat::Attribute::kDirectory)
 			{
-				continue;
-			}
-			else if (root_dir_entries[i].attr == fat::Attribute::kLongName)
-			{
-				continue;
-			}
-
-			if (ext[0])
-			{
-				sprintf(s, "%s.%s\n", base, ext);
+				ListAllEntries(this, dir->FirstCluster());
 			}
 			else
 			{
-				sprintf(s, "%s\n", base);
+				char name[13];
+				fat::FormatName(*dir, name);
+				if (post_slash)
+				{
+					Print(name);
+					Print(" is not a directory\n");
+				}
+				else
+				{
+					Print(name);
+					Print("\n");
+				}
 			}
-			Print(s);
 		}
 	}
 	else if (strcmp(command, "cat") == 0)
 	{
 		char s[64];
 
-		auto file_entry = fat::FindFile(first_arg);
+		auto [file_entry, post_slash] = fat::FindFile(first_arg);
 		if (!file_entry)
 		{
 			sprintf(s, "no such file:%s\n", first_arg);
 			Print(s);
+		}
+		else if (file_entry->attr != fat::Attribute::kDirectory && post_slash)
+		{
+			char name[13];
+			fat::FormatName(*file_entry, name);
+			Print(name);
+			Print(" is not a directory\n");
 		}
 		else
 		{
@@ -526,12 +594,19 @@ void Terminal::ExecuteLine()
 	}
 	else if (command[0] != 0)
 	{
-		auto file_entry = fat::FindFile(command);
+		auto [file_entry, post_slash] = fat::FindFile(command);
 		if (!file_entry)
 		{
 			Print("no such command: ");
 			Print(command);
 			Print("\n");
+		}
+		else if (file_entry->attr != fat::Attribute::kDirectory && post_slash)
+		{
+			char name[13];
+			fat::FormatName(*file_entry, name);
+			Print(name);
+			Print(" is not a directory\n");
 		}
 		else if (auto err = ExecuteFile(*file_entry, command, first_arg))
 		{
@@ -540,33 +615,6 @@ void Terminal::ExecuteLine()
 			Print("\n");
 		}
 	}
-}
-
-WithError<PageMapEntry *> SetupPML4(Task &current_task)
-{
-	auto pml4 = NewPageMap();
-	if (pml4.error)
-	{
-		return pml4;
-	}
-
-	const auto current_pml4 = reinterpret_cast<PageMapEntry *>(GetCR3());
-	memcpy(pml4.value, current_pml4, 256 * sizeof(uint64_t));
-
-	const auto cr3 = reinterpret_cast<uint64_t>(pml4.value);
-	SetCR3(cr3);
-	current_task.Context().cr3 = cr3;
-	return pml4;
-}
-
-Error FreePML4(Task &current_task)
-{
-	const auto cr3 = current_task.Context().cr3;
-	current_task.Context().cr3 = 0;
-	ResetCR3();
-
-	const FrameID frame{cr3 / kBytesPerFrame};
-	return memory_manager->Free(frame, 1);
 }
 
 Error Terminal::ExecuteFile(const fat::DirectoryEntry &file_entry, char *command, char *first_arg)
