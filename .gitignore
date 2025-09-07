@@ -46,6 +46,9 @@ apps/paint/paint
 apps/cube/cube
 apps/blocks/blocks
 apps/fault/fault
+apps/timer/timer
+apps/readfile/readfile
+apps/grep/grep
 
 disk.img
 mnt

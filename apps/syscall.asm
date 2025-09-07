@@ -84,3 +84,17 @@ SyscallCreateTimer:
 	mov r10, rcx
 	syscall
 	ret
+
+global SyscallOpenFile 
+SyscallOpenFile:
+	mov eax, 0x8000000c
+	mov r10, rcx
+	syscall
+	ret
+
+global SyscallReadFile
+SyscallReadFile:
+	mov eax, 0x8000000d
+	mov r10, rcx
+	syscall
+	ret

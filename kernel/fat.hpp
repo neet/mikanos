@@ -68,6 +68,23 @@ namespace fat
 		}
 	} __attribute__((packed));
 
+	class FileDescriptor
+	{
+	public:
+		explicit FileDescriptor(DirectoryEntry &fat_entry);
+		size_t Read(void *buf, size_t len);
+
+	private:
+		// このファイルディスクリプタが指すファイルへの参照
+		DirectoryEntry &fat_entry_;
+		// ファイル先頭からの読み込みオフセット（バイト単位）
+		size_t rd_off_ = 0;
+		// rd_off_が指す位置に対応するクラスタの番号
+		unsigned long rd_cluster_ = 0;
+		// クラスタ先頭からのオフセット
+		size_t rd_cluster_off_ = 0;
+	};
+
 	extern BPB *boot_volume_image;
 	extern unsigned long bytes_per_cluster;
 	void Initialize(void *volume_image);
