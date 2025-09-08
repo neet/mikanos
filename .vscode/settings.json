@@ -93,7 +93,9 @@
 		"iomanip": "cpp",
 		"sstream": "cpp",
 		"stack": "cpp",
-		"regex": "cpp"
+		"regex": "cpp",
+		"csignal": "cpp",
+		"shared_mutex": "cpp"
 	},
 	"files.exclude": {
 		"**/*.o": true,

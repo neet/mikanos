@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include "file.hpp"
 
 namespace fat
 {
@@ -68,11 +69,11 @@ namespace fat
 		}
 	} __attribute__((packed));
 
-	class FileDescriptor
+	class FileDescriptor : public ::FileDescriptor
 	{
 	public:
 		explicit FileDescriptor(DirectoryEntry &fat_entry);
-		size_t Read(void *buf, size_t len);
+		size_t Read(void *buf, size_t len) override;
 
 	private:
 		// このファイルディスクリプタが指すファイルへの参照
