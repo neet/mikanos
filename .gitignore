@@ -49,6 +49,8 @@ apps/fault/fault
 apps/timer/timer
 apps/readfile/readfile
 apps/grep/grep
+apps/timer/timer
+apps/cp/cp
 
 disk.img
 mnt
