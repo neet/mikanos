@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <cstddef>
+
 #include "file.hpp"
+#include "error.hpp"
 
 namespace fat
 {
@@ -110,4 +112,6 @@ namespace fat
 	bool NameIsEqual(const DirectoryEntry &entry, const char *name);
 
 	size_t LoadFile(void *buf, size_t len, const DirectoryEntry &entry);
+
+	WithError<DirectoryEntry *> CreateFile(const char *path);
 }
