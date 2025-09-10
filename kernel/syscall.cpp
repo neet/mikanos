@@ -24,8 +24,10 @@ namespace syscall
 		int error;
 	};
 
-#define SYSCALL(name) \
-	Result name(uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5, uint64_t arg6)
+#define SYSCALL(name)                                \
+	Result name(                                     \
+		uint64_t arg1, uint64_t arg2, uint64_t arg3, \
+		uint64_t arg4, uint64_t arg5, uint64_t arg6)
 
 	SYSCALL(LogString)
 	{
@@ -43,6 +45,7 @@ namespace syscall
 		return {len, 0};
 	}
 
+	// #@@range_begin(put_string)
 	SYSCALL(PutString)
 	{
 		const auto fd = arg1;
@@ -53,15 +56,17 @@ namespace syscall
 			return {0, E2BIG};
 		}
 
-		if (fd == 1)
-		{
-			const auto task_id = task_manager->CurrentTask().ID();
-			(*terminals)[task_id]->Print(s, len);
-			return {len, 0};
-		}
+		__asm__("cli");
+		auto &task = task_manager->CurrentTask();
+		__asm__("sti");
 
-		return {0, EBADF};
+		if (fd < 0 || task.Files().size() <= fd || !task.Files()[fd])
+		{
+			return {0, EBADF};
+		}
+		return {task.Files()[fd]->Write(s, len), 0};
 	}
+	// #@@range_end(put_string)
 
 	SYSCALL(Exit)
 	{
@@ -115,7 +120,6 @@ namespace syscall
 				return res;
 			}
 
-			// 1つめのフラグが1: 再描画をスキップ
 			if ((layer_flags & 1) == 0)
 			{
 				__asm__("cli");
@@ -130,7 +134,8 @@ namespace syscall
 	SYSCALL(WinWriteString)
 	{
 		return DoWinFunc(
-			[](Window &win, int x, int y, uint32_t color, const char *s)
+			[](Window &win,
+			   int x, int y, uint32_t color, const char *s)
 			{
 				WriteString(*win.Writer(), {x, y}, s, ToColor(color));
 				return Result{0, 0};
@@ -141,7 +146,8 @@ namespace syscall
 	SYSCALL(WinFillRectangle)
 	{
 		return DoWinFunc(
-			[](Window &win, int x, int y, int w, int h, uint32_t color)
+			[](Window &win,
+			   int x, int y, int w, int h, uint32_t color)
 			{
 				FillRectangle(*win.Writer(), {x, y}, {w, h}, ToColor(color));
 				return Result{0, 0};
@@ -167,7 +173,8 @@ namespace syscall
 	SYSCALL(WinDrawLine)
 	{
 		return DoWinFunc(
-			[](Window &win, int x0, int y0, int x1, int y1, uint32_t color)
+			[](Window &win,
+			   int x0, int y0, int x1, int y1, uint32_t color)
 			{
 				auto sign = [](int x)
 				{
@@ -208,17 +215,14 @@ namespace syscall
 						std::swap(x0, x1);
 						std::swap(y0, y1);
 					}
-
 					const auto roundish = x1 >= x0 ? floord : ceild;
 					const double m = static_cast<double>(dx) / dy;
-
 					for (int y = y0; y <= y1; ++y)
 					{
 						const int x = roundish(m * (y - y0) + x0);
 						win.Writer()->Write({x, y}, ToColor(color));
 					}
 				}
-
 				return Result{0, 0};
 			},
 			arg1, arg2, arg3, arg4, arg5, arg6);
@@ -253,7 +257,6 @@ namespace syscall
 		{
 			return {0, EFAULT};
 		}
-
 		const auto app_events = reinterpret_cast<AppEvent *>(arg1);
 		const size_t len = arg2;
 
@@ -281,7 +284,8 @@ namespace syscall
 			switch (msg->type)
 			{
 			case Message::kKeyPush:
-				if (msg->arg.keyboard.keycode == 20 && msg->arg.keyboard.modifier & (kLControlBitMask | kRControlBitMask))
+				if (msg->arg.keyboard.keycode == 20 /* Q key */ &&
+					msg->arg.keyboard.modifier & (kLControlBitMask | kRControlBitMask))
 				{
 					app_events[i].type = AppEvent::kQuit;
 					++i;
@@ -316,10 +320,9 @@ namespace syscall
 			case Message::kTimerTimeout:
 				if (msg->arg.timer.value < 0)
 				{
-
 					app_events[i].type = AppEvent::kTimerTimeout;
 					app_events[i].arg.timer.timeout = msg->arg.timer.timeout;
-					app_events[i].arg.timer.value = msg->arg.timer.value;
+					app_events[i].arg.timer.value = -msg->arg.timer.value;
 					++i;
 				}
 				break;
@@ -346,7 +349,7 @@ namespace syscall
 
 		unsigned long timeout = arg3 * kTimerFreq / 1000;
 		if (mode & 1)
-		{
+		{ // relative
 			timeout += timer_manager->CurrentTick();
 		}
 
@@ -387,7 +390,7 @@ namespace syscall
 				return {file, 0};
 			}
 		}
-	}
+	} // namespace
 
 	SYSCALL(OpenFile)
 	{
@@ -413,8 +416,8 @@ namespace syscall
 			if (err)
 			{
 				return {0, err};
-				file = new_file;
 			}
+			file = new_file;
 		}
 		else if (file->attr != fat::Attribute::kDirectory && post_slash)
 		{
@@ -439,16 +442,16 @@ namespace syscall
 		{
 			return {0, EBADF};
 		}
-
 		return {task.Files()[fd]->Read(buf, count), 0};
 	}
 
 #undef SYSCALL
-}
 
-using SyscallFuncType = syscall::Result(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+} // namespace syscall
 
-extern "C" std::array<SyscallFuncType *, 0x0e> syscall_table{
+using SyscallFuncType = syscall::Result(uint64_t, uint64_t, uint64_t,
+										uint64_t, uint64_t, uint64_t);
+extern "C" std::array<SyscallFuncType *, 0xe> syscall_table{
 	/* 0x00 */ syscall::LogString,
 	/* 0x01 */ syscall::PutString,
 	/* 0x02 */ syscall::Exit,
@@ -469,8 +472,7 @@ void InitializeSyscall()
 {
 	WriteMSR(kIA32_EFER, 0x0501u);
 	WriteMSR(kIA32_LSTAR, reinterpret_cast<uint64_t>(SyscallEntry));
-	// これで CPL=0 な CS と SS を設定しているらしい。
-	// CS=8 (1<<3) と、SS=16 (2<<3) の意味らしい
-	WriteMSR(kIA32_STAR, static_cast<uint64_t>(8) << 32 | static_cast<uint64_t>(16 | 3) << 48);
+	WriteMSR(kIA32_STAR, static_cast<uint64_t>(8) << 32 |
+							 static_cast<uint64_t>(16 | 3) << 48);
 	WriteMSR(kIA32_FMASK, 0);
 }

@@ -76,16 +76,20 @@ namespace fat
 	public:
 		explicit FileDescriptor(DirectoryEntry &fat_entry);
 		size_t Read(void *buf, size_t len) override;
+		size_t Write(const void *buf, size_t len) override;
 
 	private:
 		// このファイルディスクリプタが指すファイルへの参照
 		DirectoryEntry &fat_entry_;
 		// ファイル先頭からの読み込みオフセット（バイト単位）
 		size_t rd_off_ = 0;
+		size_t wr_off_ = 0;
 		// rd_off_が指す位置に対応するクラスタの番号
 		unsigned long rd_cluster_ = 0;
+		unsigned long wr_cluster_ = 0;
 		// クラスタ先頭からのオフセット
 		size_t rd_cluster_off_ = 0;
+		size_t wr_cluster_off_ = 0;
 	};
 
 	extern BPB *boot_volume_image;
