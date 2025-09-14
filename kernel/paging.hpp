@@ -3,13 +3,10 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "task.hpp"
+#include "error.hpp"
+
 const size_t kPageDirectoryCount = 64;
-
-void SetupIdentityPageTable();
-
-void ResetCR3();
-
-void InitializePaging();
 
 union LinearAddress4Level
 {
@@ -98,3 +95,10 @@ union PageMapEntry
 		bits.addr = reinterpret_cast<uint64_t>(p) >> 12;
 	}
 };
+
+void SetupIdentityPageTable();
+void ResetCR3();
+Error SetupPageMaps(LinearAddress4Level addr, size_t num_4kpages);
+WithError<PageMapEntry *> SetupPML4(Task &current_task);
+Error HandlePageFault(uint64_t error_code, uint64_t causal_addr);
+void InitializePaging();

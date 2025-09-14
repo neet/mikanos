@@ -1,3 +1,5 @@
+#include <csignal>
+
 #include "interrupt.hpp"
 #include "asmfunc.h"
 #include "segment.hpp"
@@ -5,7 +7,7 @@
 #include "task.hpp"
 #include "graphics.hpp"
 #include "font.hpp"
-#include <csignal>
+#include "paging.hpp"
 
 std::array<InterruptDescriptor, 256> idt;
 
@@ -107,12 +109,26 @@ namespace
 	FaultHandlerWithError(NP);
 	FaultHandlerWithError(SS);
 	FaultHandlerWithError(GP);
-	FaultHandlerWithError(PF);
 	FaultHandlerNoError(MF);
 	FaultHandlerWithError(AC);
 	FaultHandlerNoError(MC);
 	FaultHandlerNoError(XM);
 	FaultHandlerNoError(VE);
+
+	__attribute__((interrupt)) void IntHandlerPF(InterruptFrame *frame, uint64_t error_code)
+	{
+		uint64_t cr2 = GetCR2();
+		if (auto err = HandlePageFault(error_code, cr2); !err)
+		{
+			return;
+		}
+		KillApp(frame);
+		PrintFrame(frame, "#PF");
+		WriteString(*screen_writer, {500, 16 * 4}, "ERR", {0, 0, 0});
+		PrintHex(error_code, 16, {500 + 8 * 4, 16 * 4});
+		while (true)
+			__asm__("hlt");
+	}
 }
 
 void InitializeInterrupt()

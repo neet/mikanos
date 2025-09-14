@@ -51,6 +51,7 @@ apps/readfile/readfile
 apps/grep/grep
 apps/timer/timer
 apps/cp/cp
+apps/dpage/dpage
 
 disk.img
 mnt

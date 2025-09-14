@@ -98,3 +98,10 @@ SyscallReadFile:
 	mov r10, rcx
 	syscall
 	ret
+
+global SyscallDemandPages 
+SyscallDemandPages:
+	mov eax, 0x8000000e
+	mov r10, rcx
+	syscall
+	ret

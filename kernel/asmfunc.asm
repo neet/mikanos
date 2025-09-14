@@ -76,6 +76,11 @@ SetCR3:
     mov cr3, rdi
     ret
 
+global GetCR2  ; uint64_t GetCR2();
+GetCR2:
+    mov rax, cr2
+    ret
+
 global GetCR3  ; uint64_t GetCR3();
 GetCR3:
     mov rax, cr3
