@@ -105,3 +105,10 @@ SyscallDemandPages:
 	mov r10, rcx
 	syscall
 	ret
+
+global SyscallMapFile:
+SyscallMapFile:
+	mov eax, 0x8000000f
+	mov r10, rcx
+	syscall
+	ret

@@ -52,6 +52,7 @@ apps/grep/grep
 apps/timer/timer
 apps/cp/cp
 apps/dpage/dpage
+apps/mmap/mmap
 
 disk.img
 mnt
