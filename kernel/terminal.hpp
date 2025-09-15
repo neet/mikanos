@@ -7,6 +7,17 @@
 #include "layer.hpp"
 #include "fat.hpp"
 #include "file.hpp"
+#include "paging.hpp"
+
+struct AppLoadInfo
+{
+	// 「アプリのLOADセグメントの最終アドレス」
+	uint64_t vaddr_end;
+	// アプリのエントリーポイント
+	uint64_t entry;
+	// アプリのPML4のポインタ
+	PageMapEntry *pml4;
+};
 
 class Terminal
 {
@@ -36,7 +47,7 @@ private:
 	std::array<char, kLineMax> linebuf_{};
 	void Scroll1();
 	void ExecuteLine();
-	Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *command, char *first_arg);
+	Error ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char *first_arg);
 	void Print(char c);
 
 	std::deque<std::array<char, kLineMax>> cmd_history_{};

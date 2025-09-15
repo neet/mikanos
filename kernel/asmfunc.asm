@@ -71,9 +71,19 @@ SetDSAll:
     mov gs, di
     ret
 
+global SetCR0  ; void SetCR0(uint64_t value);
+SetCR0:
+    mov cr0, rdi
+    ret
+
 global SetCR3  ; void SetCR3(uint64_t value);
 SetCR3:
     mov cr3, rdi
+    ret
+
+global GetCR0  ; uint64_t GetCR0();
+GetCR0:
+    mov rax, cr0
     ret
 
 global GetCR2  ; uint64_t GetCR2();
@@ -340,4 +350,9 @@ ExitApp:
     pop rbp
     pop rbx
 
+    ret
+
+global InvalidateTLB ; void InvalidateTLB(uint64_t addr);
+InvalidateTLB:
+    invlpg [rdi]
     ret
