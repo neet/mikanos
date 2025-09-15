@@ -26,6 +26,12 @@ namespace
 
 static const auto kBytesPerFrame{4_KiB};
 
+struct MemoryStat
+{
+	size_t allocated_frames;
+	size_t total_frames;
+};
+
 class FrameID
 {
 public:
@@ -56,6 +62,7 @@ public:
 	void MarkAllocated(FrameID start_frame, size_t num_frames);
 
 	void SetMemoryRange(FrameID range_begin, FrameID range_end);
+	MemoryStat Stat() const;
 
 private:
 	std::array<MapLineType, kFrameCount / kBitsPerMapLine> alloc_map_;
