@@ -12,6 +12,7 @@
 #include "paging.hpp"
 #include "timer.hpp"
 #include "keyboard.hpp"
+#include "font.hpp"
 
 auto *terminals = new std::map<uint64_t, Terminal *>;
 std::map<fat::DirectoryEntry *, AppLoadInfo> *app_loads;
@@ -428,25 +429,25 @@ void Terminal::ExecuteLine()
 		}
 		else
 		{
-			auto cluster = file_entry->FirstCluster();
-			auto remain_bytes = file_entry->file_size;
+			fat::FileDescriptor fd{*file_entry};
+			char u8buf[4];
 
 			DrawCursor(false);
-			while (cluster != 0 && cluster != fat::kEndOfClusterchain)
+			while (true)
 			{
-				char *p = fat::GetSectorByCluster<char>(cluster);
-
-				int i = 0;
-				for (; i < fat::bytes_per_cluster && i < remain_bytes; ++i)
+				if (fd.Read(&u8buf[0], 1) != 1)
 				{
-					Print(*p);
-					++p;
+					break;
+				}
+				const int u8_remain = CountUTF8Size(u8buf[0]) - 1;
+				if (u8_remain > 0 && fd.Read(&u8buf[1], u8_remain) != u8_remain)
+				{
+					break;
 				}
 
-				remain_bytes -= i;
-				cluster = fat::NextCluster(cluster);
+				const auto [u32, u8_next] = ConvertUTF8To32(u8buf);
+				Print(u32 ? u32 : U'□');
 			}
-			DrawCursor(true);
 		}
 	}
 	else if (strcmp(command, "noterm") == 0)
@@ -606,8 +607,13 @@ Error Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char
 	return FreePML4(task);
 }
 
-void Terminal::Print(char c)
+void Terminal::Print(char32_t c)
 {
+	if (!show_window_)
+	{
+		return;
+	}
+
 	auto newline = [this]()
 	{
 		cursor_.x = 0;
@@ -621,24 +627,27 @@ void Terminal::Print(char c)
 		}
 	};
 
-	if (c == '\n')
+	if (c == U'\n')
 	{
 		newline();
 	}
-	else
+	else if (IsHankaku(c))
 	{
-		if (show_window_)
-		{
-			WriteAscii(*window_->Writer(), CalcCursorPos(), c, {255, 255, 255});
-		}
-		if (cursor_.x == kColumns - 1)
+		if (cursor_.x == kColumns)
 		{
 			newline();
 		}
-		else
+		WriteUnicode(*window_->Writer(), CalcCursorPos(), c, {255, 255, 255});
+		++cursor_.x;
+	}
+	else
+	{
+		if (cursor_.x >= kColumns - 1)
 		{
-			++cursor_.x;
+			newline();
 		}
+		WriteUnicode(*window_->Writer(), CalcCursorPos(), c, {255, 255, 255});
+		cursor_.x += 2;
 	}
 }
 
