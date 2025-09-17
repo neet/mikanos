@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
+#include "error.hpp"
 #include "graphics.hpp"
 
 int CountUTF8Size(uint8_t c);
@@ -10,4 +13,7 @@ bool IsHankaku(char32_t c);
 
 void WriteAscii(PixelWriter &writer, Vector2D<int> pos, char c, const PixelColor &color);
 void WriteString(PixelWriter &writer, Vector2D<int> pos, const char *text, const PixelColor &color);
-void WriteUnicode(PixelWriter &writer, Vector2D<int> pos, char32_t c, const PixelColor &color);
+Error WriteUnicode(PixelWriter &writer, Vector2D<int> pos, char32_t c, const PixelColor &color);
+
+void InitializeFont();
+WithError<FT_Face> NewFTFace();
