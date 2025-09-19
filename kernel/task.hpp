@@ -45,7 +45,7 @@ public:
 
 	void SendMessage(const Message &msg);
 	std::optional<Message> ReceiveMessage();
-	std::vector<std::unique_ptr<FileDescriptor>> &Files();
+	std::vector<std::shared_ptr<FileDescriptor>> &Files();
 
 	int Level() const { return level_; }
 	bool Running() const { return running_; }
@@ -67,7 +67,7 @@ private:
 	uint64_t os_stack_ptr_;
 	unsigned int level_{kDefaultLevel};
 	bool running_{false};
-	std::vector<std::unique_ptr<FileDescriptor>> files_{};
+	std::vector<std::shared_ptr<FileDescriptor>> files_{};
 	uint64_t dpaging_begin_{0}, dpaging_end_{0};
 	uint64_t file_map_end_{0};
 	std::vector<FileMapping> file_maps_{};
