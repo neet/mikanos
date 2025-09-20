@@ -352,6 +352,7 @@ void Terminal::ExecuteLine()
 	}
 
 	auto original_stdout = files_[1];
+	int exit_code = 0;
 
 	if (redir_char)
 	{
@@ -369,6 +370,7 @@ void Terminal::ExecuteLine()
 			if (err)
 			{
 				PrintToFD(*files_[2], "failed to create a redirect file: %s\n", err.Name());
+				exit_code = 1;
 				return;
 			}
 			file = new_file;
@@ -376,6 +378,7 @@ void Terminal::ExecuteLine()
 		else if (file->attr == fat::Attribute::kDirectory || post_slash)
 		{
 			PrintToFD(*files_[2], "cannot redirect to a directory\n");
+			exit_code = 1;
 			return;
 		}
 		files_[1] = std::make_shared<fat::FileDescriptor>(*file);
@@ -383,7 +386,14 @@ void Terminal::ExecuteLine()
 
 	if (strcmp(command, "echo") == 0)
 	{
-		if (first_arg)
+		if (first_arg && first_arg[0] == '$')
+		{
+			if (strcmp(&first_arg[1], "?") == 0)
+			{
+				PrintToFD(*files_[1], "%d", last_exit_code_);
+			}
+		}
+		else if (first_arg)
 		{
 			PrintToFD(*files_[1], "%s", first_arg);
 		}
@@ -420,6 +430,7 @@ void Terminal::ExecuteLine()
 			if (dir == nullptr)
 			{
 				PrintToFD(*files_[2], "No such file or directory %s\n", first_arg);
+				exit_code = 1;
 			}
 			else if (dir->attr == fat::Attribute::kDirectory)
 			{
@@ -432,10 +443,12 @@ void Terminal::ExecuteLine()
 				if (post_slash)
 				{
 					PrintToFD(*files_[2], "%s is not a directory\n", name);
+					exit_code = 1;
 				}
 				else
 				{
 					PrintToFD(*files_[2], "%s\n", name);
+					exit_code = 1;
 				}
 			}
 		}
@@ -448,12 +461,14 @@ void Terminal::ExecuteLine()
 		if (!file_entry)
 		{
 			PrintToFD(*files_[2], "no such file: %s\n", s);
+			exit_code = 1;
 		}
 		else if (file_entry->attr != fat::Attribute::kDirectory && post_slash)
 		{
 			char name[13];
 			fat::FormatName(*file_entry, name);
 			PrintToFD(*files_[2], "%s is not a directory\n", name);
+			exit_code = 1;
 		}
 		else
 		{
@@ -501,19 +516,29 @@ void Terminal::ExecuteLine()
 		if (!file_entry)
 		{
 			PrintToFD(*files_[2], "no such command: %s\n", command);
+			exit_code = 1;
 		}
 		else if (file_entry->attr != fat::Attribute::kDirectory && post_slash)
 		{
 			char name[13];
 			fat::FormatName(*file_entry, name);
 			PrintToFD(*files_[2], "%s is not a directory\n", name);
+			exit_code = 1;
 		}
-		else if (auto err = ExecuteFile(*file_entry, command, first_arg))
+
+		auto [ec, err] = ExecuteFile(*file_entry, command, first_arg);
+		if (err)
 		{
 			PrintToFD(*files_[2], "failed to exec file: %s\n", err.Name());
+			exit_code = -ec;
+		}
+		else
+		{
+			exit_code = ec;
 		}
 	}
 
+	last_exit_code_ = exit_code;
 	files_[1] = original_stdout;
 }
 
@@ -569,7 +594,7 @@ WithError<AppLoadInfo> LoadApp(fat::DirectoryEntry &file_entry, Task &task)
 	return {app_load, err};
 }
 
-Error Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char *first_arg)
+WithError<int> Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char *first_arg)
 {
 	__asm__("cli");
 	auto &task = task_manager->CurrentTask();
@@ -578,13 +603,13 @@ Error Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char
 	auto [app_load, err] = LoadApp(file_entry, task);
 	if (err)
 	{
-		return err;
+		return {0, err};
 	}
 
 	LinearAddress4Level args_frame_addr{0xffff'ffff'ffff'f000};
 	if (auto err = SetupPageMaps(args_frame_addr, 1, true))
 	{
-		return err;
+		return {0, err};
 	}
 	auto argv = reinterpret_cast<char **>(args_frame_addr.value);
 	int argv_len = 32;
@@ -593,14 +618,14 @@ Error Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char
 	auto argc = MakeArgVector(command, first_arg, argv, argv_len, argbuf, argbuf_len);
 	if (argc.error)
 	{
-		return argc.error;
+		return {0, argc.error};
 	}
 
 	const int stack_size = 8 * 4096;
 	LinearAddress4Level stack_frame_addr{0xffff'ffff'ffff'f000 - stack_size};
 	if (auto err = SetupPageMaps(stack_frame_addr, stack_size / 4096, true))
 	{
-		return err;
+		return {0, err};
 	}
 
 	for (int i = 0; i < 3; ++i)
@@ -622,16 +647,11 @@ Error Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char
 	task.Files().clear();
 	task.FileMaps().clear();
 
-	char s[64];
-	sprintf(s, "app exited. ret = %d\n", ret);
-	Print(s);
-
 	if (auto err = CleanPageMaps(LinearAddress4Level{0xffff'8000'0000'0000}))
 	{
-		return err;
+		return {ret, err};
 	}
-
-	return FreePML4(task);
+	return {ret, FreePML4(task)};
 }
 
 void Terminal::Print(char32_t c)

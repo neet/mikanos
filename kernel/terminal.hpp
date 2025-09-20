@@ -37,6 +37,7 @@ private:
 	Task &task_;
 	bool show_window_;
 	std::array<std::shared_ptr<FileDescriptor>, 3> files_;
+	int last_exit_code_{0};
 
 	std::shared_ptr<ToplevelWindow> window_;
 	unsigned int layer_id_;
@@ -50,7 +51,7 @@ private:
 	std::array<char, kLineMax> linebuf_{};
 	void Scroll1();
 	void ExecuteLine();
-	Error ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char *first_arg);
+	WithError<int> ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char *first_arg);
 	void Print(char32_t c);
 
 	std::deque<std::array<char, kLineMax>> cmd_history_{};
