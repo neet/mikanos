@@ -3,6 +3,7 @@
 #include <cstring>
 #include <limits>
 
+#include "logger.hpp"
 #include "font.hpp"
 #include "layer.hpp"
 #include "pci.hpp"
@@ -345,6 +346,8 @@ void Terminal::ExecuteLine()
 	char *command = &linebuf_[0];
 	char *first_arg = strchr(&linebuf_[0], ' ');
 	char *redir_char = strchr(&linebuf_[0], '>');
+	char *pipe_char = strchr(&linebuf_[0], '|');
+
 	if (first_arg)
 	{
 		*first_arg = 0;
@@ -354,6 +357,7 @@ void Terminal::ExecuteLine()
 	auto original_stdout = files_[1];
 	int exit_code = 0;
 
+	// リダイレクトまわりの処理
 	if (redir_char)
 	{
 		*redir_char = 0;
@@ -382,6 +386,31 @@ void Terminal::ExecuteLine()
 			return;
 		}
 		files_[1] = std::make_shared<fat::FileDescriptor>(*file);
+	}
+
+	// パイプまわりの処理
+	std::shared_ptr<PipeDescriptor> pipe_fd;
+	uint64_t subtask_id = 0;
+
+	if (pipe_char)
+	{
+		*pipe_char = 0;
+		char *subcommand = &pipe_char[1];
+		while (isspace(*subcommand))
+		{
+			++subcommand;
+		}
+
+		auto &subtask = task_manager->NewTask();
+		pipe_fd = std::make_shared<PipeDescriptor>(subtask);
+		auto term_desc = new TerminalDescriptor{
+			subcommand, true, false, {pipe_fd, files_[1], files_[2]}};
+		files_[1] = pipe_fd;
+
+		subtask_id = subtask
+						 .InitContext(TaskTerminal, reinterpret_cast<int64_t>(term_desc))
+						 .Wakeup()
+						 .ID();
 	}
 
 	if (strcmp(command, "echo") == 0)
@@ -536,6 +565,19 @@ void Terminal::ExecuteLine()
 		{
 			exit_code = ec;
 		}
+	}
+
+	if (pipe_fd)
+	{
+		pipe_fd->FinishWrite();
+		__asm__("cli");
+		auto [ec, err] = task_manager->WaitFinish(subtask_id);
+		__asm__("sti");
+		if (err)
+		{
+			Log(kWarn, "failed to wait finish: %s\n", err.Name());
+		}
+		exit_code = ec;
 	}
 
 	last_exit_code_ = exit_code;
@@ -916,4 +958,81 @@ size_t TerminalFileDescriptor::Size() const
 size_t TerminalFileDescriptor::Load(void *buf, size_t len, size_t offset)
 {
 	return 0;
+}
+
+size_t PipeDescriptor::Write(const void *buf, size_t len)
+{
+	auto bufc = reinterpret_cast<const char *>(buf);
+	Message msg{Message::kPipe};
+	size_t sent_bytes = 0;
+	while (sent_bytes < len)
+	{
+		msg.arg.pipe.len = std::min(len - sent_bytes, sizeof(msg.arg.pipe.data));
+		memcpy(msg.arg.pipe.data, &bufc[sent_bytes], msg.arg.pipe.len);
+		sent_bytes += msg.arg.pipe.len;
+		__asm__("cli");
+		task_.SendMessage(msg);
+		__asm__("sti");
+	}
+	return len;
+}
+
+size_t PipeDescriptor::Read(void *buf, size_t len)
+{
+	// これなに？
+	// --> メッセージが16バイト未満の場合に data_ をバッファとして書き込むかららしい
+	//     len_ > 0 は「前回のメッセージから引き継がれたデータがあるか」の条件かな
+	if (len_ > 0)
+	{
+		const size_t copy_bytes = std::min(len_, len);
+		memcpy(buf, data_, copy_bytes);
+		len_ -= copy_bytes;
+		memmove(data_, &data_[copy_bytes], len_);
+		return copy_bytes;
+	}
+
+	if (closed_)
+	{
+		return 0;
+	}
+
+	// kPipe以外のメッセージが来たときに捨てるっぽいのはいいのかな
+	while (true)
+	{
+		__asm__("cli");
+		auto msg = task_.ReceiveMessage();
+		if (!msg)
+		{
+			task_.Sleep();
+			continue;
+		}
+		__asm__("sti");
+
+		if (msg->type != Message::kPipe)
+		{
+			continue;
+		}
+
+		// 最後に空のデータを送る？
+		if (msg->arg.pipe.len == 0)
+		{
+			closed_ = true;
+			return 0;
+		}
+
+		const size_t copy_bytes = std::min<size_t>(msg->arg.pipe.len, len);
+		memcpy(buf, msg->arg.pipe.data, copy_bytes);
+		len_ = msg->arg.pipe.len - copy_bytes;
+		memcpy(data_, &msg->arg.pipe.data[copy_bytes], len_);
+		return copy_bytes;
+	}
+}
+
+void PipeDescriptor::FinishWrite()
+{
+	Message msg{Message::kPipe};
+	msg.arg.pipe.len = 0;
+	__asm__("cli");
+	task_.SendMessage(msg);
+	__asm__("sti");
 }
