@@ -2,6 +2,8 @@
 
 #include <deque>
 #include <map>
+#include <cstring>
+
 #include "window.hpp"
 #include "task.hpp"
 #include "layer.hpp"
@@ -19,19 +21,28 @@ struct AppLoadInfo
 	PageMapEntry *pml4;
 };
 
+struct TerminalDescriptor
+{
+	std::string command_line;
+	bool exit_after_command;
+	bool show_window;
+	std::array<std::shared_ptr<FileDescriptor>, 3> files;
+};
+
 class Terminal
 {
 public:
 	static const int kRows = 15, kColumns = 60;
 	static const int kLineMax = 128;
 
-	Terminal(Task &task_, bool show_window);
+	Terminal(Task &task, const TerminalDescriptor *term_desc);
 	unsigned int LayerID() const { return layer_id_; }
 	Rectangle<int> BlinkCursor();
 	Rectangle<int> InputKey(uint8_t modifier, uint8_t keycode, char ascii);
 	void Print(const char *s, std::optional<size_t> len = std::nullopt);
 
 	Task &UnderlyingTask() const { return task_; }
+	int LastExitCode() const { return last_exit_code_; }
 
 private:
 	Task &task_;
@@ -61,8 +72,6 @@ private:
 
 extern std::map<uint64_t, Terminal *> *terminals;
 
-size_t PrintToFD(FileDescriptor &fd, const char *format, ...);
-
 void TaskTerminal(uint64_t task_id, int64_t data);
 
 class TerminalFileDescriptor : public FileDescriptor
@@ -71,7 +80,7 @@ public:
 	explicit TerminalFileDescriptor(Terminal &term);
 	size_t Read(void *buf, size_t len) override;
 	size_t Write(const void *buf, size_t len) override;
-	size_t Size() const override;
+	size_t Size() const override { return 0; };
 
 	size_t Load(void *buf, size_t len, size_t offset) override;
 
@@ -95,10 +104,4 @@ private:
 	char data_[16];
 	size_t len_{0};
 	bool closed_{false};
-};
-
-class TerminalDescriptor
-{
-public:
-	TerminalDescriptor(char *command, bool x, bool y, std::array<std::shared_ptr<FileDescriptor>, 3> files);
 };

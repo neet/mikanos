@@ -12,3 +12,5 @@ public:
 
 	virtual size_t Load(void *buf, size_t len, size_t offset) = 0;
 };
+
+size_t PrintToFD(FileDescriptor &fd, const char *format, ...);

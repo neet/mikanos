@@ -103,10 +103,10 @@ namespace
 	}
 }
 
-std::pair<uint64_t, Error> CopyLoadSegments(Elf64_Ehdr *ehdr)
+WithError<uint64_t> CopyLoadSegments(Elf64_Ehdr *ehdr)
 {
 	auto phdr = GetProgramHeader(ehdr);
-	uint64_t elf_last_addr = 0;
+	uint64_t last_addr = 0;
 	for (int i = 0; i < ehdr->e_phnum; ++i)
 	{
 		if (phdr[i].p_type != PT_LOAD)
@@ -114,24 +114,23 @@ std::pair<uint64_t, Error> CopyLoadSegments(Elf64_Ehdr *ehdr)
 
 		LinearAddress4Level dest_addr;
 		dest_addr.value = phdr[i].p_vaddr;
+		last_addr = std::max(last_addr, phdr[i].p_vaddr + phdr[i].p_memsz);
 		const auto num_4kpages = (phdr[i].p_memsz + 4095) / 4096;
 
 		if (auto err = SetupPageMaps(dest_addr, num_4kpages, false))
 		{
-			return {0, err};
+			return {last_addr, err};
 		}
 
 		const auto src = reinterpret_cast<uint8_t *>(ehdr) + phdr[i].p_offset;
 		const auto dst = reinterpret_cast<uint8_t *>(phdr[i].p_vaddr);
 		memcpy(dst, src, phdr[i].p_filesz);
 		memset(dst + phdr[i].p_filesz, 0, phdr[i].p_memsz - phdr[i].p_filesz);
-
-		elf_last_addr = std::max(elf_last_addr, phdr[i].p_vaddr + phdr[i].p_memsz);
 	}
-	return {elf_last_addr, MAKE_ERROR(Error::kSuccess)};
-};
+	return {last_addr, MAKE_ERROR(Error::kSuccess)};
+}
 
-std::pair<uint64_t, Error> LoadELF(Elf64_Ehdr *ehdr)
+WithError<uint64_t> LoadELF(Elf64_Ehdr *ehdr)
 {
 	if (ehdr->e_type != ET_EXEC)
 	{
@@ -144,13 +143,24 @@ std::pair<uint64_t, Error> LoadELF(Elf64_Ehdr *ehdr)
 		return {0, MAKE_ERROR(Error::kInvalidFormat)};
 	}
 
-	const auto [elf_last_addr, cp_err] = CopyLoadSegments(ehdr);
-	if (cp_err)
+	return CopyLoadSegments(ehdr);
+}
+
+WithError<PageMapEntry *> SetupPML4(Task &current_task)
+{
+	auto pml4 = NewPageMap();
+	if (pml4.error)
 	{
-		return {0, cp_err};
+		return pml4;
 	}
 
-	return {elf_last_addr, cp_err};
+	const auto current_pml4 = reinterpret_cast<PageMapEntry *>(GetCR3());
+	memcpy(pml4.value, current_pml4, 256 * sizeof(uint64_t));
+
+	const auto cr3 = reinterpret_cast<uint64_t>(pml4.value);
+	SetCR3(cr3);
+	current_task.Context().cr3 = cr3;
+	return pml4;
 }
 
 Error FreePML4(Task &current_task)
@@ -163,7 +173,7 @@ Error FreePML4(Task &current_task)
 	return memory_manager->Free(frame, 1);
 }
 
-void ListAllEntries(Terminal *term, uint32_t dir_cluster)
+void ListAllEntries(FileDescriptor &fd, uint32_t dir_cluster)
 {
 	const auto kEntriesPerCluster =
 		fat::bytes_per_cluster / sizeof(fat::DirectoryEntry);
@@ -189,21 +199,85 @@ void ListAllEntries(Terminal *term, uint32_t dir_cluster)
 
 			char name[13];
 			fat::FormatName(dir[i], name);
-			term->Print(name);
-			term->Print("\n");
+			PrintToFD(fd, "%s\n", name);
 		}
 
 		dir_cluster = fat::NextCluster(dir_cluster);
 	}
 }
 
-Terminal::Terminal(Task &task, bool show_window) : task_{task}, show_window_{show_window}
+WithError<AppLoadInfo> LoadApp(fat::DirectoryEntry &file_entry, Task &task)
 {
-	for (int i = 0; i < files_.size(); ++i)
+	PageMapEntry *temp_pml4;
+	if (auto [pml4, err] = SetupPML4(task); err)
 	{
-		files_[i] = std::make_shared<TerminalFileDescriptor>(*this);
+		return {{}, err};
 	}
-	if (show_window)
+	else
+	{
+		temp_pml4 = pml4;
+	}
+
+	if (auto it = app_loads->find(&file_entry); it != app_loads->end())
+	{
+		AppLoadInfo app_load = it->second;
+		auto err = CopyPageMaps(temp_pml4, app_load.pml4, 4, 256);
+		app_load.pml4 = temp_pml4;
+		return {app_load, err};
+	}
+
+	std::vector<uint8_t> file_buf(file_entry.file_size);
+	fat::LoadFile(&file_buf[0], file_buf.size(), file_entry);
+
+	auto elf_header = reinterpret_cast<Elf64_Ehdr *>(&file_buf[0]);
+	if (memcmp(elf_header->e_ident, "\x7f"
+									"ELF",
+			   4) != 0)
+	{
+		return {{}, MAKE_ERROR(Error::kInvalidFile)};
+	}
+
+	auto [last_addr, err_load] = LoadELF(elf_header);
+	if (err_load)
+	{
+		return {{}, err_load};
+	}
+
+	AppLoadInfo app_load{last_addr, elf_header->e_entry, temp_pml4};
+	app_loads->insert(std::make_pair(&file_entry, app_load));
+
+	if (auto [pml4, err] = SetupPML4(task); err)
+	{
+		return {app_load, err};
+	}
+	else
+	{
+		app_load.pml4 = pml4;
+	}
+	auto err = CopyPageMaps(app_load.pml4, temp_pml4, 4, 256);
+	return {app_load, err};
+}
+
+Terminal::Terminal(Task &task, const TerminalDescriptor *term_desc) : task_{task}
+{
+	if (term_desc)
+	{
+		show_window_ = term_desc->show_window;
+		for (int i = 0; i < files_.size(); ++i)
+		{
+			files_[i] = term_desc->files[i];
+		}
+	}
+	else
+	{
+		show_window_ = true;
+		for (int i = 0; i < files_.size(); ++i)
+		{
+			files_[i] = std::make_shared<TerminalFileDescriptor>(*this);
+		}
+	}
+
+	if (show_window_)
 	{
 		window_ = std::make_shared<ToplevelWindow>(
 			kColumns * 8 + 8 + ToplevelWindow::kMarginX,
@@ -334,11 +408,8 @@ void Terminal::Scroll1()
 		{8 * kColumns, 16 * (kRows - 1)},
 	};
 	window_->Move(ToplevelWindow::kTopLeftMargin + Vector2D<int>{4, 4}, move_src);
-	if (show_window_)
-	{
-		FillRectangle(*window_->InnerWriter(),
-					  {4, 4 + 16 * cursor_.y}, {8 * kColumns, 16}, {0, 0, 0});
-	}
+	FillRectangle(*window_->InnerWriter(),
+				  {4, 4 + 16 * cursor_.y}, {8 * kColumns, 16}, {0, 0, 0});
 }
 
 void Terminal::ExecuteLine()
@@ -374,7 +445,6 @@ void Terminal::ExecuteLine()
 			if (err)
 			{
 				PrintToFD(*files_[2], "failed to create a redirect file: %s\n", err.Name());
-				exit_code = 1;
 				return;
 			}
 			file = new_file;
@@ -382,7 +452,6 @@ void Terminal::ExecuteLine()
 		else if (file->attr == fat::Attribute::kDirectory || post_slash)
 		{
 			PrintToFD(*files_[2], "cannot redirect to a directory\n");
-			exit_code = 1;
 			return;
 		}
 		files_[1] = std::make_shared<fat::FileDescriptor>(*file);
@@ -438,20 +507,18 @@ void Terminal::ExecuteLine()
 	}
 	else if (strcmp(command, "lspci") == 0)
 	{
-		char s[64];
 		for (int i = 0; i < pci::num_device; ++i)
 		{
 			const auto &dev = pci::devices[i];
 			auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
-			sprintf(s, "%02x:%02x.%d vend=%04x head=%02x class=%02x.%02x.%02x\n", dev.bus, dev.device, dev.function, vendor_id, dev.header_type, dev.class_code.base, dev.class_code.sub, dev.class_code.interface);
-			PrintToFD(*files_[1], s);
+			PrintToFD(*files_[1], "%02x:%02x.%d vend=%04x head=%02x class=%02x.%02x.%02x\n", dev.bus, dev.device, dev.function, vendor_id, dev.header_type, dev.class_code.base, dev.class_code.sub, dev.class_code.interface);
 		}
 	}
 	else if (strcmp(command, "ls") == 0)
 	{
-		if (first_arg[0] == '\0')
+		if (!first_arg || first_arg[0] == '\0')
 		{
-			ListAllEntries(this, fat::boot_volume_image->root_cluster);
+			ListAllEntries(*files_[1], fat::boot_volume_image->root_cluster);
 		}
 		else
 		{
@@ -463,7 +530,7 @@ void Terminal::ExecuteLine()
 			}
 			else if (dir->attr == fat::Attribute::kDirectory)
 			{
-				ListAllEntries(this, dir->FirstCluster());
+				ListAllEntries(*files_[1], dir->FirstCluster());
 			}
 			else
 			{
@@ -484,12 +551,10 @@ void Terminal::ExecuteLine()
 	}
 	else if (strcmp(command, "cat") == 0)
 	{
-		char s[64];
-
 		auto [file_entry, post_slash] = fat::FindFile(first_arg);
 		if (!file_entry)
 		{
-			PrintToFD(*files_[2], "no such file: %s\n", s);
+			PrintToFD(*files_[2], "no such file: %s\n", first_arg);
 			exit_code = 1;
 		}
 		else if (file_entry->attr != fat::Attribute::kDirectory && post_slash)
@@ -525,19 +590,18 @@ void Terminal::ExecuteLine()
 	}
 	else if (strcmp(command, "noterm") == 0)
 	{
+		auto term_desc = new TerminalDescriptor{
+			first_arg, true, false, files_};
 		task_manager->NewTask()
-			.InitContext(TaskTerminal, reinterpret_cast<int64_t>(first_arg))
+			.InitContext(TaskTerminal, reinterpret_cast<int64_t>(term_desc))
 			.Wakeup();
 	}
 	else if (strcmp(command, "memstat") == 0)
 	{
 		const auto p_stat = memory_manager->Stat();
 
-		char s[64];
-		sprintf(s, "Phys used : %lu frames (%llu MiB)\n", p_stat.allocated_frames, p_stat.allocated_frames * kBytesPerFrame / 1024 / 1024);
-		PrintToFD(*files_[1], s);
-		sprintf(s, "Phys total: %lu frames (%llu MiB)\n", p_stat.total_frames, p_stat.total_frames * kBytesPerFrame / 1024 / 1024);
-		PrintToFD(*files_[1], s);
+		PrintToFD(*files_[1], "Phys used : %lu frames (%llu MiB)\n", p_stat.allocated_frames, p_stat.allocated_frames * kBytesPerFrame / 1024 / 1024);
+		PrintToFD(*files_[1], "Phys total: %lu frames (%llu MiB)\n", p_stat.total_frames, p_stat.total_frames * kBytesPerFrame / 1024 / 1024);
 	}
 	else if (command[0] != 0)
 	{
@@ -584,58 +648,6 @@ void Terminal::ExecuteLine()
 	files_[1] = original_stdout;
 }
 
-WithError<AppLoadInfo> LoadApp(fat::DirectoryEntry &file_entry, Task &task)
-{
-	PageMapEntry *temp_pml4;
-	if (auto [pml4, err] = SetupPML4(task); err)
-	{
-		return {{}, err};
-	}
-	else
-	{
-		temp_pml4 = pml4;
-	}
-
-	if (auto it = app_loads->find(&file_entry); it != app_loads->end())
-	{
-		AppLoadInfo app_load = it->second;
-		auto err = CopyPageMaps(temp_pml4, app_load.pml4, 4, 256);
-		app_load.pml4 = temp_pml4;
-		return {app_load, err};
-	}
-
-	std::vector<uint8_t> file_buf(file_entry.file_size);
-	fat::LoadFile(&file_buf[0], file_buf.size(), file_entry);
-
-	auto elf_header = reinterpret_cast<Elf64_Ehdr *>(&file_buf[0]);
-	if (memcmp(elf_header->e_ident, "\x7f"
-									"ELF",
-			   4) != 0)
-	{
-		return {{}, MAKE_ERROR(Error::kInvalidFile)};
-	}
-
-	auto [last_addr, err_load] = LoadELF(elf_header);
-	if (err_load)
-	{
-		return {{}, err_load};
-	}
-
-	AppLoadInfo app_load{last_addr, elf_header->e_entry, temp_pml4};
-	app_loads->insert(std::make_pair(&file_entry, app_load));
-
-	if (auto [pml4, err] = SetupPML4(task); err)
-	{
-		return {app_load, err};
-	}
-	else
-	{
-		app_load.pml4 = pml4;
-	}
-	auto err = CopyPageMaps(app_load.pml4, temp_pml4, 4, 256);
-	return {app_load, err};
-}
-
 WithError<int> Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *command, char *first_arg)
 {
 	__asm__("cli");
@@ -649,7 +661,7 @@ WithError<int> Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *comm
 	}
 
 	LinearAddress4Level args_frame_addr{0xffff'ffff'ffff'f000};
-	if (auto err = SetupPageMaps(args_frame_addr, 1, true))
+	if (auto err = SetupPageMaps(args_frame_addr, 1))
 	{
 		return {0, err};
 	}
@@ -665,12 +677,12 @@ WithError<int> Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *comm
 
 	const int stack_size = 8 * 4096;
 	LinearAddress4Level stack_frame_addr{0xffff'ffff'ffff'f000 - stack_size};
-	if (auto err = SetupPageMaps(stack_frame_addr, stack_size / 4096, true))
+	if (auto err = SetupPageMaps(stack_frame_addr, stack_size / 4096))
 	{
 		return {0, err};
 	}
 
-	for (int i = 0; i < 3; ++i)
+	for (int i = 0; i < files_.size(); ++i)
 	{
 		task.Files().push_back(files_[i]);
 	}
@@ -680,7 +692,7 @@ WithError<int> Terminal::ExecuteFile(fat::DirectoryEntry &file_entry, char *comm
 	task.SetDPagingBegin(elf_next_page);
 	task.SetDPagingEnd(elf_next_page);
 
-	task.SetFileMapEnd(0xffff'ffff'ffff'e000);
+	task.SetFileMapEnd(stack_frame_addr.value);
 
 	int ret = CallApp(argc.value, argv, 3 << 3 | 3, app_load.entry,
 					  stack_frame_addr.value + stack_size - 8,
@@ -809,44 +821,41 @@ Rectangle<int> Terminal::HistoryUpDown(int direction)
 	return draw_area;
 }
 
-size_t PrintToFD(FileDescriptor &fd, const char *format, ...)
-{
-	va_list ap;
-	int result;
-	char s[123];
-
-	va_start(ap, format);
-	result = vsprintf(s, format, ap);
-	va_end(ap);
-
-	fd.Write(s, result);
-	return result;
-}
-
 void TaskTerminal(uint64_t task_id, int64_t data)
 {
-	const char *command_line = reinterpret_cast<char *>(data);
-	const bool show_window = command_line == nullptr;
+	const auto term_desc = reinterpret_cast<TerminalDescriptor *>(data);
+	bool show_window = true;
+	if (term_desc)
+	{
+		show_window = term_desc->show_window;
+	}
 
 	__asm__("cli");
 	Task &task = task_manager->CurrentTask();
-	Terminal *terminal = new Terminal{task, show_window};
+	Terminal *terminal = new Terminal{task, term_desc};
 	if (show_window)
 	{
 		layer_manager->Move(terminal->LayerID(), {100, 200});
 		layer_task_map->insert(std::make_pair(terminal->LayerID(), task_id));
 		active_layer->Activate(terminal->LayerID());
 	}
-	(*terminals)[task_id] = terminal;
 	__asm__("sti");
 
-	if (command_line)
+	if (term_desc && !term_desc->command_line.empty())
 	{
-		for (int i = 0; command_line[i] != '\0'; ++i)
+		for (int i = 0; i < term_desc->command_line.length(); ++i)
 		{
-			terminal->InputKey(0, 0, command_line[i]);
+			terminal->InputKey(0, 0, term_desc->command_line[i]);
 		}
 		terminal->InputKey(0, 0, '\n');
+	}
+
+	if (term_desc && term_desc->exit_after_command)
+	{
+		delete term_desc;
+		__asm__("cli");
+		task_manager->Finish(terminal->LastExitCode());
+		__asm__("sti");
 	}
 
 	auto add_blink_timer = [task_id](unsigned long t)
@@ -936,6 +945,7 @@ size_t TerminalFileDescriptor::Read(void *buf, size_t len)
 			{
 				return 0;
 			}
+			continue;
 		}
 
 		bufc[0] = msg->arg.keyboard.ascii;
@@ -950,32 +960,12 @@ size_t TerminalFileDescriptor::Write(const void *buf, size_t len)
 	return len;
 }
 
-size_t TerminalFileDescriptor::Size() const
-{
-	return 0;
-}
-
 size_t TerminalFileDescriptor::Load(void *buf, size_t len, size_t offset)
 {
 	return 0;
 }
 
-size_t PipeDescriptor::Write(const void *buf, size_t len)
-{
-	auto bufc = reinterpret_cast<const char *>(buf);
-	Message msg{Message::kPipe};
-	size_t sent_bytes = 0;
-	while (sent_bytes < len)
-	{
-		msg.arg.pipe.len = std::min(len - sent_bytes, sizeof(msg.arg.pipe.data));
-		memcpy(msg.arg.pipe.data, &bufc[sent_bytes], msg.arg.pipe.len);
-		sent_bytes += msg.arg.pipe.len;
-		__asm__("cli");
-		task_.SendMessage(msg);
-		__asm__("sti");
-	}
-	return len;
-}
+PipeDescriptor::PipeDescriptor(Task &task) : task_{task} {}
 
 size_t PipeDescriptor::Read(void *buf, size_t len)
 {
@@ -1026,6 +1016,23 @@ size_t PipeDescriptor::Read(void *buf, size_t len)
 		memcpy(data_, &msg->arg.pipe.data[copy_bytes], len_);
 		return copy_bytes;
 	}
+}
+
+size_t PipeDescriptor::Write(const void *buf, size_t len)
+{
+	auto bufc = reinterpret_cast<const char *>(buf);
+	Message msg{Message::kPipe};
+	size_t sent_bytes = 0;
+	while (sent_bytes < len)
+	{
+		msg.arg.pipe.len = std::min(len - sent_bytes, sizeof(msg.arg.pipe.data));
+		memcpy(msg.arg.pipe.data, &bufc[sent_bytes], msg.arg.pipe.len);
+		sent_bytes += msg.arg.pipe.len;
+		__asm__("cli");
+		task_.SendMessage(msg);
+		__asm__("sti");
+	}
+	return len;
 }
 
 void PipeDescriptor::FinishWrite()

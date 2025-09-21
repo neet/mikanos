@@ -98,9 +98,10 @@ union PageMapEntry
 
 void SetupIdentityPageTable();
 void ResetCR3();
-Error SetupPageMaps(LinearAddress4Level addr, size_t num_4kpages, bool writable);
+Error SetupPageMaps(LinearAddress4Level addr, size_t num_4kpages, bool writable = true);
 WithError<PageMapEntry *> SetupPML4(Task &current_task);
 Error CopyPageMaps(PageMapEntry *dest, PageMapEntry *src, int part, int start);
 Error HandlePageFault(uint64_t error_code, uint64_t causal_addr);
 Error CleanPageMaps(LinearAddress4Level addr);
+WithError<PageMapEntry *> NewPageMap();
 void InitializePaging();

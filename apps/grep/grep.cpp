@@ -10,7 +10,7 @@ extern "C" void main(int argc, char **argv)
 		exit(1);
 	}
 
-	std::regex pattern(argv[1]);
+	std::regex pattern{argv[1]};
 
 	FILE *fp = fopen(argv[2], "r");
 	if (fp == nullptr)
