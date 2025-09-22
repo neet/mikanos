@@ -40,6 +40,7 @@ public:
 	Rectangle<int> BlinkCursor();
 	Rectangle<int> InputKey(uint8_t modifier, uint8_t keycode, char ascii);
 	void Print(const char *s, std::optional<size_t> len = std::nullopt);
+	void Redraw();
 
 	Task &UnderlyingTask() const { return task_; }
 	int LastExitCode() const { return last_exit_code_; }
