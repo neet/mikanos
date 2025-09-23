@@ -46,7 +46,6 @@ apps/paint/paint
 apps/cube/cube
 apps/blocks/blocks
 apps/fault/fault
-apps/timer/timer
 apps/readfile/readfile
 apps/grep/grep
 apps/timer/timer
@@ -54,6 +53,7 @@ apps/cp/cp
 apps/dpage/dpage
 apps/mmap/mmap
 apps/sort/sort
+apps/more/more
 
 disk.img
 mnt
