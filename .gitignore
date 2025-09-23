@@ -55,6 +55,7 @@ apps/mmap/mmap
 apps/sort/sort
 apps/more/more
 apps/tview/tview
+apps/gview/gview
 
 disk.img
 mnt
