@@ -105,6 +105,6 @@ namespace
 
 void InitializeConsole()
 {
-	console = new (console_buf) Console{kDesktopFGColor, kDesktopBGColor};
+	console = new (console_buf) Console{{255, 255, 255}, {7, 122, 125}};
 	console->SetWriter(screen_writer);
 }

@@ -185,36 +185,35 @@ void DrawWindow(PixelWriter &writer, const char *title)
 	const auto win_w = writer.Width();
 	const auto win_h = writer.Height();
 
-	fill_rect({0, 0}, {win_w, 1}, 0xc6c6c6);
-	fill_rect({1, 1}, {win_w - 2, 1}, 0xffffff);
-	fill_rect({0, 0}, {1, win_h}, 0xc6c6c6);
-	fill_rect({1, 1}, {1, win_h - 2}, 0xffffff);
-	fill_rect({win_w - 2, 1}, {1, win_h - 2}, 0x848484);
-	fill_rect({win_w - 1, 0}, {1, win_h}, 0x000000);
-	fill_rect({2, 2}, {win_w - 4, win_h - 4}, 0xc6c6c6);
-	fill_rect({1, win_h - 2}, {win_w - 2, 1}, 0x848484);
-	fill_rect({0, win_h - 1}, {win_w, 1}, 0x000000);
+	// fill_rect({0, 0}, {win_w, 1}, 0xD3DAD9);
+	// fill_rect({1, 1}, {win_w - 2, 1}, 0x575760);
+	// fill_rect({0, 0}, {1, win_h}, 0xD3DAD9);
+	// fill_rect({1, 1}, {1, win_h - 2}, 0x575760);
+	// fill_rect({win_w - 2, 1}, {1, win_h - 2}, 0x37353E);
+	// fill_rect({win_w - 1, 0}, {1, win_h}, 0x3d3d46);
+	fill_rect({0, 0}, {win_w, win_h}, 0x949998);
+	fill_rect({1, 1}, {win_w - 2, win_h - 2}, 0xD3DAD9);
 
 	DrawWindowTitle(writer, title, false);
 }
 
 void DrawTextbox(PixelWriter &writer, Vector2D<int> pos, Vector2D<int> size)
 {
-	DrawTextbox(writer, pos, size, ToColor(0xffffff), ToColor(0xc6c6c6), ToColor(0x848484));
+	DrawTextbox(writer, pos, size, ToColor(0xffffff), ToColor(0xD3DAD9), ToColor(0x37353E));
 };
 
 void DrawTerminal(PixelWriter &writer, Vector2D<int> pos, Vector2D<int> size)
 {
-	DrawTextbox(writer, pos, size, ToColor(0x000000), ToColor(0xc6c6c6), ToColor(0x848484));
+	DrawTextbox(writer, pos, size, ToColor(0x000000), ToColor(0xD3DAD9), ToColor(0x37353E));
 };
 
 void DrawWindowTitle(PixelWriter &writer, const char *title, bool active)
 {
 	const auto win_w = writer.Width();
-	uint32_t bgcolor = 0x848484;
+	uint32_t bgcolor = 0x44444E;
 	if (active)
 	{
-		bgcolor = 0x000084;
+		bgcolor = 0x37353E;
 	}
 
 	FillRectangle(writer, {3, 3}, {win_w - 6, 18}, ToColor(bgcolor));
@@ -231,11 +230,11 @@ void DrawWindowTitle(PixelWriter &writer, const char *title, bool active)
 			}
 			else if (close_button[y][x] == '$')
 			{
-				c = ToColor(0x848484);
+				c = ToColor(0x37353E);
 			}
 			else if (close_button[y][x] == ':')
 			{
-				c = ToColor(0xc6c6c6);
+				c = ToColor(0xD3DAD9);
 			}
 			writer.Write({win_w - 5 - kCloseButtonWidth + x, 5 + y}, c);
 		}

@@ -48,13 +48,11 @@ void DrawDesktop(PixelWriter &writer)
 	const auto height = writer.Height();
 
 	// 背景
-	FillRectangle(writer, {0, 0}, {width, height - 50}, kDesktopBGColor);
+	FillRectangle(writer, {0, 0}, {width, height - 50}, {7, 122, 125});
 	// ツールバー
-	FillRectangle(writer, {0, height - 50}, {width, 50}, kDesktopAccentColor);
-	// 「スタート」ボタン
-	FillRectangle(writer, {0, height - 50}, {width / 5, 50}, kDesktopAccent2Color);
+	FillRectangle(writer, {0, height - 50}, {width, 50}, {55, 53, 62});
 	// Windowsアイコン
-	DrawRectangle(writer, {10, height - 40}, {30, 30}, kDesktopAccentColor);
+	FillRectangle(writer, {10, height - 40}, {30, 30}, {211, 218, 217});
 }
 
 FrameBufferConfig screen_config;

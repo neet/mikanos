@@ -8,8 +8,8 @@
 #include "task.hpp"
 #include "usb/classdriver/mouse.hpp"
 
-const PixelColor kMouseCursorBorderColor = {6, 32, 43};
-const PixelColor kMouseCursorFillColor = {245, 238, 221};
+const PixelColor kMouseCursorBorderColor = {211, 218, 217};
+const PixelColor kMouseCursorFillColor = {55, 53, 62};
 
 const char mouse_cursor_shape[kMouseCursorHeight][kMouseCursorWidth + 1] = {
 	"@              ",

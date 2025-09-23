@@ -136,11 +136,6 @@ void FillRectangle(PixelWriter &writer, const Vector2D<int> &pos, const Vector2D
 void DrawRectangle(PixelWriter &writer, const Vector2D<int> &pos, const Vector2D<int> &size, const PixelColor &c);
 void DrawDesktop(PixelWriter &writer);
 
-const PixelColor kDesktopBGColor = {6, 32, 43};
-const PixelColor kDesktopFGColor = {245, 238, 221};
-const PixelColor kDesktopAccentColor = {122, 226, 207};
-const PixelColor kDesktopAccent2Color = {7, 122, 125};
-
 extern FrameBufferConfig screen_config;
 extern PixelWriter *screen_writer;
 Vector2D<int> ScreenSize();
