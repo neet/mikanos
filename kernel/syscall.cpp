@@ -326,6 +326,10 @@ namespace syscall
 					++i;
 				}
 				break;
+			case Message::kWindowClose:
+				app_events[i].type = AppEvent::kQuit;
+				++i;
+				break;
 			default:
 				Log(kInfo, "uncaught event type: %u\n", msg->type);
 			}

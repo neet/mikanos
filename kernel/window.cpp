@@ -109,6 +109,11 @@ void Window::Move(Vector2D<int> dst_pos, const Rectangle<int> &src)
 	shadow_buffer_.Move(dst_pos, src);
 }
 
+WindowRegion Window::GetWindowRegion(Vector2D<int> pos)
+{
+	return WindowRegion::kOther;
+}
+
 ToplevelWindow::ToplevelWindow(int width, int height, PixelFormat shadow_format, const std::string &title) : Window{width, height, shadow_format}, title_{title}
 {
 	DrawWindow(*Writer(), title_.c_str());
@@ -151,6 +156,23 @@ namespace
 		".$$$$$$$$$$$$$$@",
 		"@@@@@@@@@@@@@@@@",
 	};
+}
+
+WindowRegion ToplevelWindow::GetWindowRegion(Vector2D<int> pos)
+{
+	if (pos.x < 2 || Width() - 2 <= pos.x || pos.y < 2 || Height() - 2 <= pos.y)
+	{
+		return WindowRegion::kBorder;
+	}
+	else if (pos.y < kTopLeftMargin.y)
+	{
+		if (Width() - 5 - kCloseButtonWidth <= pos.x && pos.x < Width() - 5 && 5 <= pos.y && pos.y < 5 + kCloseButtonHeight)
+		{
+			return WindowRegion::kCloseButton;
+		}
+		return WindowRegion::kTitleBar;
+	}
+	return WindowRegion::kOther;
 }
 
 void DrawWindow(PixelWriter &writer, const char *title)
