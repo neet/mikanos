@@ -263,11 +263,14 @@ bool UpdateStartLine(int *start_line, int height, size_t num_lines)
 }
 // #@@range_end(update_startline)
 
+// #@@range_begin(main)
 extern "C" void main(int argc, char **argv)
 {
 	auto print_help = [argv]()
 	{
-		fprintf(stderr, "Usage: %s [-w WIDTH] [-h HEIGHT] [-t TAB] <file>\n", argv[0]);
+		fprintf(stderr,
+				"Usage: %s [-w WIDTH] [-h HEIGHT] [-t TAB] <file>\n",
+				argv[0]);
 	};
 
 	int opt;
@@ -318,3 +321,4 @@ extern "C" void main(int argc, char **argv)
 	SyscallCloseWindow(layer_id);
 	exit(0);
 }
+// #@@range_end(main)
